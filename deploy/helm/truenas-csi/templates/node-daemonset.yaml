@@ -1,0 +1,189 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "truenas-csi.fullname" . }}-node
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "truenas-csi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: node
+spec:
+  selector:
+    matchLabels:
+      {{- include "truenas-csi.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: node
+
+  template:
+    metadata:
+      labels:
+        {{- include "truenas-csi.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: node
+        {{- with .Values.node.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ toYaml .Values.config | sha256sum }}
+        checksum/secret: {{ toYaml .Values.secret | sha256sum }}
+        {{- with .Values.node.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "truenas-csi.nodeServiceAccountName" . }}
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.node.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.node.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.node.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.node.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: csi-node
+          image: {{ printf "%s:%s" .Values.image.repository (default .Chart.AppVersion .Values.image.tag) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    set -e
+                    mkdir -p /run/lock/iscsi
+                    mv /usr/sbin/iscsiadm /usr/sbin/iscsiadm.orig 2>/dev/null || true
+                    printf '#!/bin/sh\nnsenter --mount=/host/proc/1/ns/mnt -- "${ISCSIADM_HOST_PATH:-/usr/sbin/iscsiadm}" "$@"\n' > /usr/sbin/iscsiadm
+                    chmod +x /usr/sbin/iscsiadm
+                    modprobe nvme_tcp 2>/dev/null
+                    modprobe nvme_fabrics 2>/dev/null
+          securityContext:
+            privileged: true
+          args:
+            - --endpoint=$(CSI_ENDPOINT)
+            - --node-id=$(NODE_ID)
+            - --mode=node
+            - --v={{ .Values.node.logLevel }}
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: TRUENAS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "truenas-csi.secretName" . }}
+                  key: {{ include "truenas-csi.secretKey" . }}
+            {{- with .Values.node.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "truenas-csi.configMapName" . }}
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: kubelet-dir
+              mountPath: {{ .Values.node.kubeletRootDir }}
+              mountPropagation: Bidirectional
+            - name: device-dir
+              mountPath: /dev
+            - name: modules-dir
+              mountPath: /lib/modules
+              readOnly: true
+            - name: iscsi-dir
+              mountPath: {{ .Values.node.iscsiDir }}
+              mountPropagation: Bidirectional
+            - name: iscsi-lib
+              mountPath: /var/lib/iscsi
+              mountPropagation: Bidirectional
+            - name: host-root
+              mountPath: /host
+              mountPropagation: Bidirectional
+            {{- with .Values.node.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.node.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9808
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+        - name: csi-node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0
+          args:
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+            - --v=5
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: {{ printf "%s/plugins/%s/csi.sock" .Values.node.kubeletRootDir (include "truenas-csi.driverName" .) }}
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
+        - name: liveness-probe
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9808
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: {{ printf "%s/plugins_registry" .Values.node.kubeletRootDir }}
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: {{ printf "%s/plugins/%s" .Values.node.kubeletRootDir (include "truenas-csi.driverName" .) }}
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: {{ .Values.node.kubeletRootDir }}
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: modules-dir
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: iscsi-dir
+          hostPath:
+            path: {{ .Values.node.iscsiDir }}
+            type: DirectoryOrCreate
+        - name: iscsi-lib
+          hostPath:
+            path: /var/lib/iscsi
+            type: DirectoryOrCreate
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+        {{- with .Values.node.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

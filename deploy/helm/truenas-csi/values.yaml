@@ -1,0 +1,101 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/truenas/truenas-csi
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+config:
+  truenasURL: wss://truenas.example.com/api/current
+  truenasInsecure: true
+  defaultPool: tank
+  nfsServer: ""
+  iscsiPortal: ""
+  nvmeofPortal: ""
+  iscsiIQNBase: iqn.2000-01.io.truenas
+
+secret:
+  existingSecret:
+    name: ""
+    key: TRUENAS_API_KEY
+  name: truenas-api-credentials
+  apiKey: ""
+
+serviceAccount:
+  controller:
+    create: true
+    name: ""
+    annotations: {}
+  node:
+    create: true
+    name: ""
+    annotations: {}
+
+rbac:
+  create: true
+
+controller:
+  replicas: 1
+  priorityClassName: ""
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+  logLevel: 4
+  extraEnv: []
+  extraVolumeMounts: []
+  extraVolumes: []
+
+node:
+  priorityClassName: system-node-critical
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations:
+    - operator: Exists
+  affinity: {}
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+  logLevel: 4
+  extraEnv: []
+  extraVolumeMounts: []
+  extraVolumes: []
+  kubeletRootDir: /var/lib/kubelet
+  iscsiDir: /etc/iscsi
+
+storageClasses: []
+#  - name: truenas-iscsi
+#    annotations: {}
+#    defaultClass: false
+#    reclaimPolicy: Delete
+#    volumeBindingMode: WaitForFirstConsumer
+#    allowVolumeExpansion: true
+#    mountOptions: []
+#    parameters:
+#      protocol: iscsi
+#      pool: tank
+#      datasetPath: talos/volumes
+#      fsType: ext4
+#      compression: lz4
+#      volblocksize: 16K
+
+volumeSnapshotClasses: []
+#  - name: truenas
+#    annotations: {}
+#    deletionPolicy: Delete
+#    parameters: {}

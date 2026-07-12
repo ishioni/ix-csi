@@ -1,0 +1,18 @@
+TrueNAS CSI has been deployed.
+
+Namespace: {{ .Release.Namespace }}
+Driver:    {{ include "truenas-csi.driverName" . }}
+Image:     {{ .Values.image.repository }}:{{ .Values.image.tag }}
+
+Check rollout status:
+  kubectl get pods -n {{ .Release.Namespace }}
+  kubectl get csidriver {{ include "truenas-csi.driverName" . }}
+
+If you enabled chart-managed classes:
+  kubectl get storageclass
+  kubectl get volumesnapshotclass
+
+Important:
+- Ensure your worker nodes have the required host paths and mount propagation support.
+- For non-standard kubelet roots (Talos, K3s, MicroK8s), override .Values.node.kubeletRootDir.
+- Prefer setting nested volume placement via StorageClass parameter datasetPath rather than embedding a dataset path into pool.
