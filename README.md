@@ -156,13 +156,15 @@ sudo systemctl enable microk8s-mount-propagation
 |-----------|-------------|--------|
 | `protocol` | Storage protocol | `nfs`, `iscsi`, `nvmeof` |
 | `pool` | ZFS pool (overrides default) | pool name |
-| `compression` | ZFS compression algorithm | `OFF`, `LZ4`, `GZIP`, `ZSTD`, `ZLE`, `LZJB` |
-| `sync` | ZFS sync mode | `STANDARD`, `ALWAYS`, `DISABLED` |
+| `datasetPath` | Nested path below the pool for created volumes | relative path, e.g. `talos/volumes` |
+| `compression` | ZFS compression algorithm | `OFF`, `LZ4`, `GZIP`, `GZIP-1`..`GZIP-9`, `ZSTD`, `ZSTD-1`, `ZSTD-3`, `ZSTD-5`, `ZSTD-7`, `ZSTD-9`, `ZLE`, `LZJB` |
+| `zfs.<property>` | Raw ZFS property passthrough | e.g. `zfs.atime`, `zfs.recordsize` |
 
 #### NFS Parameters
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `sync` | ZFS sync mode | `STANDARD`, `ALWAYS`, `DISABLED` |
 | `nfs.hosts` | Allowed hosts | `10.0.0.0/8,192.168.1.0/24` |
 | `nfs.networks` | Allowed networks | `10.0.0.0/8` |
 | `nfs.mountOptions` | Client mount options | `hard,nfsvers=4.1` |
@@ -174,20 +176,25 @@ sudo systemctl enable microk8s-mount-propagation
 | Parameter | Description | Values |
 |-----------|-------------|--------|
 | `volblocksize` | ZVOL block size | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
+| `sparse` | Thin-provision the ZVOL | `true`, `false` |
 | `iscsi.blocksize` | iSCSI logical block size | `512`, `1024`, `2048`, `4096` |
+| `iscsi.iqn-base` | Base IQN for generated targets | string |
+| `iscsi.iqn-prefix` | Legacy alias for `iscsi.iqn-base` | string |
 | `iscsi.chapUser` | CHAP username | string |
 | `iscsi.chapSecret` | CHAP password (12-16 chars) | string |
 | `iscsi.chapPeerUser` | Mutual CHAP peer user | string |
 | `iscsi.chapPeerSecret` | Mutual CHAP peer password | string |
 | `iscsi.initiators` | Allowed initiator IQNs | comma-separated |
 | `iscsi.networks` | Allowed network CIDRs | comma-separated |
+| `forceDelete` | Force deletion of iSCSI resources | `true`, `false` |
+| `deleteExtentsWithTarget` | Delete extents along with the target | `true`, `false` |
 
 #### NVMe-oF Parameters
 
-NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is optional.
-
 | Parameter | Description | Values |
 |-----------|-------------|--------|
+| `volblocksize` | ZVOL block size | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
+| `sparse` | Thin-provision the ZVOL | `true`, `false` |
 | `nvmeof.hostNQN` | Authorized host NQN (required for DH-CHAP) | `nqn.2014-08.org.nvmexpress:uuid:...` |
 | `nvmeof.dhchapKey` | DH-CHAP host key | `DHHC-1:00:...` |
 | `nvmeof.dhchapCtrlKey` | Mutual DH-CHAP controller key | `DHHC-1:00:...` |
@@ -209,10 +216,13 @@ NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is 
 | Parameter | Description | Values |
 |-----------|-------------|--------|
 | `encryption` | Enable encryption | `true`, `false` |
-| `encryption.algorithm` | Encryption algorithm | `AES-256-GCM`, `AES-128-CCM` |
-| `encryption.passphrase` | Passphrase (min 8 chars) | string |
-| `encryption.key` | Hex-encoded key (64 chars) | string |
-| `encryption.generateKey` | Auto-generate key | `true`, `false` |
+| `encryption.algorithm` | Encryption algorithm | Defaults to `AES-256-GCM` |
+| `encryption.passphrase` | Passphrase | Minimum 8 chars per TrueNAS |
+| `encryption.key` | Hex-encoded raw key | Typically 64 hex chars |
+| `encryption.generateKey` | Ask TrueNAS to generate a key | `true`, `false` |
+| `encryption.pbkdf2iters` | PBKDF2 iterations | Minimum `100000`; defaults to TrueNAS behavior when omitted |
+
+
 
 ## Examples
 
