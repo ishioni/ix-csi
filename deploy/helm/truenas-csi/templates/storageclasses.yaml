@@ -1,0 +1,26 @@
+{{- range .Values.storageClasses }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .name }}
+  {{- if or .annotations .defaultClass }}
+  annotations:
+    {{- if .defaultClass }}
+    storageclass.kubernetes.io/is-default-class: "true"
+    {{- end }}
+    {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+provisioner: {{ include "truenas-csi.driverName" $ }}
+reclaimPolicy: {{ default "Delete" .reclaimPolicy }}
+volumeBindingMode: {{ default "WaitForFirstConsumer" .volumeBindingMode }}
+allowVolumeExpansion: {{ default true .allowVolumeExpansion }}
+{{- with .mountOptions }}
+mountOptions:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+parameters:
+  {{- toYaml .parameters | nindent 2 }}
+{{- end }}

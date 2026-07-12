@@ -1,0 +1,18 @@
+apiVersion: v2
+name: truenas-csi
+description: Helm chart for deploying the TrueNAS CSI driver
+home: https://github.com/truenas/truenas-csi
+type: application
+# version + appVersion are overridden at package time from the release tag.
+version: 0.0.0
+appVersion: "0.0.0"
+kubeVersion: ">=1.26.0-0"
+keywords:
+  - csi
+  - storage
+  - truenas
+  - zfs
+sources:
+  - https://github.com/truenas/truenas-csi
+maintainers:
+  - name: truenas-csi
