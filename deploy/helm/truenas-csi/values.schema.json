@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "pullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["repository", "tag", "pullPolicy", "pullSecrets"]
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "truenasURL": { "type": "string", "pattern": "^wss?://" },
+        "truenasInsecure": { "type": "boolean" },
+        "defaultPool": { "type": "string", "minLength": 1 },
+        "nfsServer": { "type": "string" },
+        "iscsiPortal": { "type": "string" },
+        "nvmeofPortal": { "type": "string" },
+        "iscsiIQNBase": { "type": "string" }
+      },
+      "required": ["truenasURL", "truenasInsecure", "defaultPool", "nfsServer", "iscsiPortal", "nvmeofPortal", "iscsiIQNBase"]
+    },
+    "secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "key": { "type": "string", "minLength": 1 }
+          },
+          "required": ["name", "key"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "apiKey": { "type": "string" }
+      },
+      "required": ["existingSecret", "name", "apiKey"]
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "controller": { "$ref": "#/definitions/serviceAccountSpec" },
+        "node": { "$ref": "#/definitions/serviceAccountSpec" }
+      },
+      "required": ["controller", "node"]
+    },
+    "rbac": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean" }
+      },
+      "required": ["create"]
+    },
+    "controller": { "$ref": "#/definitions/controllerSpec" },
+    "node": { "$ref": "#/definitions/nodeSpec" },
+    "storageClasses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+          "defaultClass": { "type": "boolean" },
+          "reclaimPolicy": { "type": "string" },
+          "volumeBindingMode": { "type": "string" },
+          "allowVolumeExpansion": { "type": "boolean" },
+          "mountOptions": { "type": "array", "items": { "type": "string" } },
+          "parameters": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+        },
+        "required": ["name", "parameters"]
+      }
+    },
+    "volumeSnapshotClasses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+          "deletionPolicy": { "type": "string" },
+          "parameters": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+        },
+        "required": ["name"]
+      }
+    }
+  },
+  "required": ["image", "config", "secret", "serviceAccount", "rbac", "controller", "node", "storageClasses", "volumeSnapshotClasses"],
+  "anyOf": [
+    {
+      "properties": {
+        "secret": {
+          "properties": {
+            "apiKey": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "secret": {
+          "properties": {
+            "existingSecret": {
+              "properties": {
+                "name": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "serviceAccountSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean" },
+        "name": { "type": "string" },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "required": ["create", "name", "annotations"]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "requests": { "type": "object", "additionalProperties": { "type": ["string", "number"] } },
+        "limits": { "type": "object", "additionalProperties": { "type": ["string", "number"] } }
+      }
+    },
+    "controllerSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "replicas": { "type": "integer", "minimum": 1 },
+        "priorityClassName": { "type": "string" },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "affinity": { "type": "object", "additionalProperties": true },
+        "resources": { "$ref": "#/definitions/resources" },
+        "logLevel": { "type": "integer", "minimum": 1 },
+        "extraEnv": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "extraVolumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "extraVolumes": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+      },
+      "required": ["replicas", "priorityClassName", "podAnnotations", "podLabels", "nodeSelector", "tolerations", "affinity", "resources", "logLevel", "extraEnv", "extraVolumeMounts", "extraVolumes"]
+    },
+    "nodeSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "priorityClassName": { "type": "string" },
+        "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "podLabels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "affinity": { "type": "object", "additionalProperties": true },
+        "resources": { "$ref": "#/definitions/resources" },
+        "logLevel": { "type": "integer", "minimum": 1 },
+        "extraEnv": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "extraVolumeMounts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "extraVolumes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "kubeletRootDir": { "type": "string", "minLength": 1 },
+        "iscsiDir": { "type": "string", "minLength": 1 }
+      },
+      "required": ["priorityClassName", "podAnnotations", "podLabels", "nodeSelector", "tolerations", "affinity", "resources", "logLevel", "extraEnv", "extraVolumeMounts", "extraVolumes", "kubeletRootDir", "iscsiDir"]
+    }
+  }
+}
