@@ -7,6 +7,26 @@ image:
   pullPolicy: IfNotPresent
   pullSecrets: []
 
+sidecars:
+  provisioner:
+    repository: registry.k8s.io/sig-storage/csi-provisioner
+    tag: v6.1.1
+  attacher:
+    repository: registry.k8s.io/sig-storage/csi-attacher
+    tag: v4.11.0
+  snapshotter:
+    repository: registry.k8s.io/sig-storage/csi-snapshotter
+    tag: v8.5.0
+  resizer:
+    repository: registry.k8s.io/sig-storage/csi-resizer
+    tag: v2.1.0
+  nodeDriverRegistrar:
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+    tag: v2.16.0
+  livenessProbe:
+    repository: registry.k8s.io/sig-storage/livenessprobe
+    tag: v2.18.0
+
 config:
   truenasURL: wss://truenas.example.com/api/current
   truenasInsecure: true
@@ -15,6 +35,7 @@ config:
   iscsiPortal: ""
   nvmeofPortal: ""
   iscsiIQNBase: iqn.2000-01.io.truenas
+  kernelModulesHostPath: /lib/modules
 
 secret:
   existingSecret:
@@ -35,6 +56,9 @@ serviceAccount:
 
 rbac:
   create: true
+
+openshift:
+  enabled: false
 
 controller:
   replicas: 1

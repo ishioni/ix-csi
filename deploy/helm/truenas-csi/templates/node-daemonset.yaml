@@ -127,7 +127,7 @@ spec:
             periodSeconds: 10
             failureThreshold: 5
         - name: csi-node-driver-registrar
-          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.16.0
+          image: {{ printf "%s:%s" .Values.sidecars.nodeDriverRegistrar.repository .Values.sidecars.nodeDriverRegistrar.tag }}
           args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -144,7 +144,7 @@ spec:
               mountPath: /registration
 
         - name: liveness-probe
-          image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0
+          image: {{ printf "%s:%s" .Values.sidecars.livenessProbe.repository .Values.sidecars.livenessProbe.tag }}
           args:
             - --csi-address=/csi/csi.sock
             - --health-port=9808
@@ -170,7 +170,7 @@ spec:
             path: /dev
         - name: modules-dir
           hostPath:
-            path: /lib/modules
+            path: {{ .Values.config.kernelModulesHostPath }}
             type: Directory
         - name: iscsi-dir
           hostPath:
