@@ -19,18 +19,15 @@ A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.tr
 ## Requirements
 
 ### TrueNAS
-
 - TrueNAS SCALE 25.10.0+
 - API access enabled
 - At least one ZFS pool configured
 
 ### Kubernetes
-
 - Kubernetes 1.26+
 - For snapshots: [snapshot-controller](https://github.com/kubernetes-csi/external-snapshotter) installed
 
 ### Node Requirements
-
 - **NFS volumes**: No additional requirements
 - **iSCSI volumes**: `open-iscsi` package installed on worker nodes
 - **NVMe-oF volumes**: `nvme_tcp`/`nvme_fabrics` kernel modules available on worker nodes (the node DaemonSet loads them); requires TrueNAS SCALE 25.10+ with the NVMe-oF target service enabled
@@ -43,16 +40,13 @@ A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.tr
    - Create a new API key and copy it
 
 2. **Configure the driver**
-
    ```bash
    # Edit the deployment manifest
    vi deploy/truenas-csi-driver.yaml
    ```
-
    Update the ConfigMap with your TrueNAS connection details and the Secret with your API key.
 
 3. **Deploy the driver**
-
    ```bash
    kubectl apply -f deploy/truenas-csi-driver.yaml
    ```
@@ -68,7 +62,6 @@ A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.tr
 ### Prerequisites
 
 Install the snapshot controller (required for snapshot support):
-
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
@@ -104,11 +97,11 @@ The default deployment manifest uses `/var/lib/kubelet` as the kubelet root dire
 3. The `--kubelet-registration-path` argument
 4. The `mountPath` for the `kubelet-dir` volume mount on the `csi-node` container
 
-| Distribution        | Kubelet Path                                |
-| ------------------- | ------------------------------------------- |
-| Standard Kubernetes | `/var/lib/kubelet` (default)                |
-| MicroK8s            | `/var/snap/microk8s/common/var/lib/kubelet` |
-| K3s                 | `/var/lib/rancher/k3s/agent/kubelet`        |
+| Distribution | Kubelet Path |
+|---|---|
+| Standard Kubernetes | `/var/lib/kubelet` (default) |
+| MicroK8s | `/var/snap/microk8s/common/var/lib/kubelet` |
+| K3s | `/var/lib/rancher/k3s/agent/kubelet` |
 
 > **Important:** The `kubelet-dir` `mountPath` must match the `hostPath`. If they differ, NFS mounts will succeed inside the CSI container but will not propagate to kubelet, causing pods to see local storage instead of NFS.
 
@@ -145,89 +138,91 @@ sudo systemctl enable microk8s-mount-propagation
 
 ### Driver Configuration (ConfigMap)
 
-| Setting           | Description                                     | Example                        |
-| ----------------- | ----------------------------------------------- | ------------------------------ |
-| `truenasURL`      | WebSocket URL to TrueNAS API                    | `wss://10.0.0.100/api/current` |
-| `truenasInsecure` | Skip TLS verification                           | `true` (for self-signed certs) |
-| `defaultPool`     | Default ZFS pool for volumes                    | `tank`                         |
-| `nfsServer`       | NFS server address                              | `10.0.0.100`                   |
-| `iscsiPortal`     | iSCSI portal address                            | `10.0.0.100:3260`              |
-| `nvmeofPortal`    | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420`              |
-| `iscsiIQNBase`    | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
+| Setting | Description | Example |
+|---------|-------------|---------|
+| `truenasURL` | WebSocket URL to TrueNAS API | `wss://10.0.0.100/api/current` |
+| `truenasInsecure` | Skip TLS verification | `true` (for self-signed certs) |
+| `defaultPool` | Default ZFS pool for volumes | `tank` |
+| `nfsServer` | NFS server address | `10.0.0.100` |
+| `iscsiPortal` | iSCSI portal address | `10.0.0.100:3260` |
+| `nvmeofPortal` | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420` |
+| `iscsiIQNBase` | Base IQN for iSCSI targets | `iqn.2024-01.com.example` |
 
 ### StorageClass Parameters
 
 #### General Parameters
 
-| Parameter        | Description                                    | Values                                                                                                            |
-| ---------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `protocol`       | Storage protocol                               | `nfs`, `iscsi`, `nvmeof`                                                                                          |
-| `pool`           | ZFS pool (overrides default)                   | pool name                                                                                                         |
-| `datasetPath`    | Nested path below the pool for created volumes | relative path, e.g. `talos/volumes`                                                                               |
-| `compression`    | ZFS compression algorithm                      | `OFF`, `LZ4`, `GZIP`, `GZIP-1`..`GZIP-9`, `ZSTD`, `ZSTD-1`, `ZSTD-3`, `ZSTD-5`, `ZSTD-7`, `ZSTD-9`, `ZLE`, `LZJB` |
-| `zfs.<property>` | Raw ZFS property passthrough                   | e.g. `zfs.atime`, `zfs.recordsize`                                                                                |
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `protocol` | Storage protocol | `nfs`, `iscsi`, `nvmeof` |
+| `pool` | ZFS pool (overrides default) | pool name |
+| `compression` | ZFS compression algorithm | `OFF`, `LZ4`, `GZIP`, `ZSTD`, `ZLE`, `LZJB` |
+| `sync` | ZFS sync mode | `STANDARD`, `ALWAYS`, `DISABLED` |
 
 #### NFS Parameters
 
-| Parameter          | Description                          | Values                           |
-| ------------------ | ------------------------------------ | -------------------------------- |
-| `sync`             | ZFS sync mode                        | `STANDARD`, `ALWAYS`, `DISABLED` |
-| `nfs.hosts`        | Allowed hosts                        | `10.0.0.0/8,192.168.1.0/24`      |
-| `nfs.networks`     | Allowed networks                     | `10.0.0.0/8`                     |
-| `nfs.mountOptions` | Client mount options                 | `hard,nfsvers=4.1`               |
-| `nfs.mapAllUser`   | NFS user mapping (default: `root`)   | `postgres`                       |
-| `nfs.mapAllGroup`  | NFS group mapping (default: `wheel`) | `postgres`                       |
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `nfs.hosts` | Allowed hosts | `10.0.0.0/8,192.168.1.0/24` |
+| `nfs.networks` | Allowed networks | `10.0.0.0/8` |
+| `nfs.mountOptions` | Client mount options | `hard,nfsvers=4.1` |
+| `nfs.mapAllUser` | NFS user mapping (default: `root`) | `postgres` |
+| `nfs.mapAllGroup` | NFS group mapping (default: `wheel`) | `postgres` |
+| `nfs.rootSquash` | Squash all access to the mapped user (default: `true`). Set `false` for `no_root_squash` so a pod `fsGroup` can chown the volume root — required for ownership-sensitive non-root workloads (e.g. PostgreSQL/CNPG) | `false` |
+
+By default an NFS share squashes all client access to a single user (`mapall`,
+`root:wheel`). Ownership-sensitive workloads that run as a non-root user (such as
+PostgreSQL/CloudNativePG) need to own their data directory, which `mapall` cannot
+provide. Set `nfs.rootSquash: "false"` to switch the share to `no_root_squash`:
+incoming root is preserved so the kubelet (via the driver's `fsGroupPolicy: File`)
+can chown the volume root to the pod's `fsGroup`, and non-root UIDs are no longer
+squashed. Requires the workload to set a pod `securityContext.fsGroup`. See
+`examples/storageclass-nfs-fsgroup.yaml`.
 
 #### iSCSI Parameters
 
-| Parameter                 | Description                          | Values                                                     |
-| ------------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| `volblocksize`            | ZVOL block size                      | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
-| `sparse`                  | Thin-provision the ZVOL              | `true`, `false`                                            |
-| `iscsi.blocksize`         | iSCSI logical block size             | `512`, `1024`, `2048`, `4096`                              |
-| `iscsi.iqn-base`          | Base IQN for generated targets       | string                                                     |
-| `iscsi.iqn-prefix`        | Legacy alias for `iscsi.iqn-base`    | string                                                     |
-| `iscsi.chapUser`          | CHAP username                        | string                                                     |
-| `iscsi.chapSecret`        | CHAP password (12-16 chars)          | string                                                     |
-| `iscsi.chapPeerUser`      | Mutual CHAP peer user                | string                                                     |
-| `iscsi.chapPeerSecret`    | Mutual CHAP peer password            | string                                                     |
-| `iscsi.initiators`        | Allowed initiator IQNs               | comma-separated                                            |
-| `iscsi.networks`          | Allowed network CIDRs                | comma-separated                                            |
-| `forceDelete`             | Force deletion of iSCSI resources    | `true`, `false`                                            |
-| `deleteExtentsWithTarget` | Delete extents along with the target | `true`, `false`                                            |
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `volblocksize` | ZVOL block size | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
+| `iscsi.blocksize` | iSCSI logical block size | `512`, `1024`, `2048`, `4096` |
+| `iscsi.chapUser` | CHAP username | string |
+| `iscsi.chapSecret` | CHAP password (12-16 chars) | string |
+| `iscsi.chapPeerUser` | Mutual CHAP peer user | string |
+| `iscsi.chapPeerSecret` | Mutual CHAP peer password | string |
+| `iscsi.initiators` | Allowed initiator IQNs | comma-separated |
+| `iscsi.networks` | Allowed network CIDRs | comma-separated |
 
 #### NVMe-oF Parameters
 
-| Parameter              | Description                                | Values                                                     |
-| ---------------------- | ------------------------------------------ | ---------------------------------------------------------- |
-| `volblocksize`         | ZVOL block size                            | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
-| `sparse`               | Thin-provision the ZVOL                    | `true`, `false`                                            |
-| `nvmeof.hostNQN`       | Authorized host NQN (required for DH-CHAP) | `nqn.2014-08.org.nvmexpress:uuid:...`                      |
-| `nvmeof.dhchapKey`     | DH-CHAP host key                           | `DHHC-1:00:...`                                            |
-| `nvmeof.dhchapCtrlKey` | Mutual DH-CHAP controller key              | `DHHC-1:00:...`                                            |
-| `nvmeof.dhchapHash`    | DH-CHAP hash (default `SHA-256`)           | `SHA-256`, `SHA-384`, `SHA-512`                            |
-| `nvmeof.dhchapDHGroup` | DH group                                   | `2048-BIT`, `3072-BIT`, `4096-BIT`, `6144-BIT`, `8192-BIT` |
+NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is optional.
+
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `nvmeof.hostNQN` | Authorized host NQN (required for DH-CHAP) | `nqn.2014-08.org.nvmexpress:uuid:...` |
+| `nvmeof.dhchapKey` | DH-CHAP host key | `DHHC-1:00:...` |
+| `nvmeof.dhchapCtrlKey` | Mutual DH-CHAP controller key | `DHHC-1:00:...` |
+| `nvmeof.dhchapHash` | DH-CHAP hash (default `SHA-256`) | `SHA-256`, `SHA-384`, `SHA-512` |
+| `nvmeof.dhchapDHGroup` | DH group | `2048-BIT`, `3072-BIT`, `4096-BIT`, `6144-BIT`, `8192-BIT` |
 
 #### Snapshot Task Parameters
 
-| Parameter                | Description              | Values                                 |
-| ------------------------ | ------------------------ | -------------------------------------- |
-| `snapshot.schedule`      | Cron schedule (5 fields) | `0 0 * * *`                            |
-| `snapshot.retention`     | Retention period         | `1`-`365`                              |
-| `snapshot.retentionUnit` | Retention unit           | `HOUR`, `DAY`, `WEEK`, `MONTH`, `YEAR` |
-| `snapshot.naming`        | Naming schema            | `auto-%Y-%m-%d_%H-%M`                  |
-| `snapshot.recursive`     | Include child datasets   | `true`, `false`                        |
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `snapshot.schedule` | Cron schedule (5 fields) | `0 0 * * *` |
+| `snapshot.retention` | Retention period | `1`-`365` |
+| `snapshot.retentionUnit` | Retention unit | `HOUR`, `DAY`, `WEEK`, `MONTH`, `YEAR` |
+| `snapshot.naming` | Naming schema | `auto-%Y-%m-%d_%H-%M` |
+| `snapshot.recursive` | Include child datasets | `true`, `false` |
 
 #### Encryption Parameters
 
-| Parameter                | Description                   | Values                                                      |
-| ------------------------ | ----------------------------- | ----------------------------------------------------------- |
-| `encryption`             | Enable encryption             | `true`, `false`                                             |
-| `encryption.algorithm`   | Encryption algorithm          | Defaults to `AES-256-GCM`                                   |
-| `encryption.passphrase`  | Passphrase                    | Minimum 8 chars per TrueNAS                                 |
-| `encryption.key`         | Hex-encoded raw key           | Typically 64 hex chars                                      |
-| `encryption.generateKey` | Ask TrueNAS to generate a key | `true`, `false`                                             |
-| `encryption.pbkdf2iters` | PBKDF2 iterations             | Minimum `100000`; defaults to TrueNAS behavior when omitted |
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `encryption` | Enable encryption | `true`, `false` |
+| `encryption.algorithm` | Encryption algorithm | `AES-256-GCM`, `AES-128-CCM` |
+| `encryption.passphrase` | Passphrase (min 8 chars) | string |
+| `encryption.key` | Hex-encoded key (64 chars) | string |
+| `encryption.generateKey` | Auto-generate key | `true`, `false` |
 
 ## Examples
 
@@ -235,6 +230,7 @@ See the [`examples/`](examples/) folder for sample configurations:
 
 - `storageclass-nfs.yaml` - Basic NFS StorageClass
 - `storageclass-nfs-compressed.yaml` - NFS with ZSTD compression
+- `storageclass-nfs-fsgroup.yaml` - NFS for ownership-sensitive non-root workloads (no_root_squash + pod fsGroup)
 - `storageclass-iscsi.yaml` - Basic iSCSI StorageClass
 - `storageclass-iscsi-chap.yaml` - iSCSI with CHAP authentication
 - `storageclass-nvmeof.yaml` - Basic NVMe-oF/TCP StorageClass
@@ -247,13 +243,11 @@ See the [`examples/`](examples/) folder for sample configurations:
 ## Building
 
 ### Build the binary
-
 ```bash
 make build
 ```
 
 ### Build container images
-
 ```bash
 # Build Alpine-based image (standard Kubernetes)
 make docker-build
@@ -263,7 +257,6 @@ make build-ubi
 ```
 
 ### Push to quay.io
-
 ```bash
 # Login to quay.io
 docker login quay.io
@@ -276,19 +269,18 @@ make push-all
 ```
 
 ### Run tests
-
 ```bash
 make test
 ```
 
 ## Container Images
 
-| Image                                                   | Description                                        |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `ghcr.io/truenas/truenas-csi`                           | CSI driver (Alpine-based, for standard Kubernetes) |
-| `quay.io/truenas_solutions/truenas-csi`                 | CSI driver (UBI-based, for Red Hat OpenShift)      |
-| `quay.io/truenas_solutions/truenas-csi-operator`        | Kubernetes operator                                |
-| `quay.io/truenas_solutions/truenas-csi-operator-bundle` | OLM bundle for OperatorHub                         |
+| Image | Description |
+|-------|-------------|
+| `ghcr.io/truenas/truenas-csi` | CSI driver (Alpine-based, for standard Kubernetes) |
+| `quay.io/truenas_solutions/truenas-csi` | CSI driver (UBI-based, for Red Hat OpenShift) |
+| `quay.io/truenas_solutions/truenas-csi-operator` | Kubernetes operator |
+| `quay.io/truenas_solutions/truenas-csi-operator-bundle` | OLM bundle for OperatorHub |
 
 ## Running the Demo
 
@@ -306,7 +298,6 @@ The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and is designed for Oper
    - Click **Install**
 
 2. **Create credentials secret**
-
    ```yaml
    apiVersion: v1
    kind: Secret
