@@ -1,87 +1,86 @@
-# truenas-csi Helm chart
+# truenas-csi
 
-This chart packages the static `deploy/truenas-csi-driver.yaml` manifest into a configurable Helm release.
+![Version: 0.0.0](https://img.shields.io/badge/Version-0.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.0](https://img.shields.io/badge/AppVersion-0.0.0-informational?style=flat-square)
 
-## Install
+Helm chart for deploying the TrueNAS CSI driver
 
-```bash
-helm upgrade --install truenas-csi ./deploy/helm/truenas-csi \
-  --namespace truenas-csi \
-  --create-namespace \
-  --set config.truenasURL=wss://truenas.example.com/api/current \
-  --set config.defaultPool=SSD \
-  --set secret.apiKey=REDACTED
-```
+**Homepage:** <https://github.com/truenas/truenas-csi>
 
-## Existing secret
+## Maintainers
 
-If you already manage credentials externally, set:
+| Name | Email | Url |
+| ---- | ------ | --- |
+| truenas-csi |  |  |
 
-- `secret.existingSecret.name`
-- `secret.existingSecret.key`
+## Source Code
 
-Example:
+* <https://github.com/truenas/truenas-csi>
 
-```bash
-helm upgrade --install truenas-csi ./deploy/helm/truenas-csi \
-  --namespace truenas-csi \
-  --create-namespace \
-  --set secret.existingSecret.name=truenas-api-credentials
-```
+## Requirements
 
-The chart reads `TRUENAS_API_KEY` from the external secret using `secret.existingSecret.name` and `secret.existingSecret.key`.
+Kubernetes: `>=1.26.0-0`
 
-## Nested dataset placement
+## Values
 
-Prefer configuring nested dataset placement in StorageClasses via `datasetPath`, for example:
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| config.defaultPool | string | `"tank"` |  |
+| config.iscsiIQNBase | string | `"iqn.2000-01.io.truenas"` |  |
+| config.iscsiPortal | string | `""` |  |
+| config.nfsServer | string | `""` |  |
+| config.nvmeofPortal | string | `""` |  |
+| config.truenasInsecure | bool | `true` |  |
+| config.truenasURL | string | `"wss://truenas.example.com/api/current"` |  |
+| controller.affinity | object | `{}` |  |
+| controller.extraEnv | list | `[]` |  |
+| controller.extraVolumeMounts | list | `[]` |  |
+| controller.extraVolumes | list | `[]` |  |
+| controller.logLevel | int | `4` |  |
+| controller.nodeSelector | object | `{}` |  |
+| controller.podAnnotations | object | `{}` |  |
+| controller.podLabels | object | `{}` |  |
+| controller.priorityClassName | string | `""` |  |
+| controller.replicas | int | `1` |  |
+| controller.resources.limits.cpu | string | `"200m"` |  |
+| controller.resources.limits.memory | string | `"256Mi"` |  |
+| controller.resources.requests.cpu | string | `"100m"` |  |
+| controller.resources.requests.memory | string | `"128Mi"` |  |
+| controller.tolerations | list | `[]` |  |
+| fullnameOverride | string | `""` |  |
+| image.pullPolicy | string | `"IfNotPresent"` |  |
+| image.pullSecrets | list | `[]` |  |
+| image.repository | string | `"ghcr.io/truenas/truenas-csi"` |  |
+| image.tag | string | `""` |  |
+| nameOverride | string | `""` |  |
+| node.affinity | object | `{}` |  |
+| node.extraEnv | list | `[]` |  |
+| node.extraVolumeMounts | list | `[]` |  |
+| node.extraVolumes | list | `[]` |  |
+| node.iscsiDir | string | `"/etc/iscsi"` |  |
+| node.kubeletRootDir | string | `"/var/lib/kubelet"` |  |
+| node.logLevel | int | `4` |  |
+| node.nodeSelector | object | `{}` |  |
+| node.podAnnotations | object | `{}` |  |
+| node.podLabels | object | `{}` |  |
+| node.priorityClassName | string | `"system-node-critical"` |  |
+| node.resources.limits.cpu | string | `"200m"` |  |
+| node.resources.limits.memory | string | `"256Mi"` |  |
+| node.resources.requests.cpu | string | `"100m"` |  |
+| node.resources.requests.memory | string | `"128Mi"` |  |
+| node.tolerations[0].operator | string | `"Exists"` |  |
+| rbac.create | bool | `true` |  |
+| secret.apiKey | string | `""` |  |
+| secret.existingSecret.key | string | `"TRUENAS_API_KEY"` |  |
+| secret.existingSecret.name | string | `""` |  |
+| secret.name | string | `"truenas-api-credentials"` |  |
+| serviceAccount.controller.annotations | object | `{}` |  |
+| serviceAccount.controller.create | bool | `true` |  |
+| serviceAccount.controller.name | string | `""` |  |
+| serviceAccount.node.annotations | object | `{}` |  |
+| serviceAccount.node.create | bool | `true` |  |
+| serviceAccount.node.name | string | `""` |  |
+| storageClasses | list | `[]` |  |
+| volumeSnapshotClasses | list | `[]` |  |
 
-```yaml
-storageClasses:
-  - name: truenas-iscsi
-    parameters:
-      protocol: iscsi
-      pool: SSD
-      datasetPath: talos/volumes
-      fsType: ext4
-```
-
-## Non-standard kubelet roots and iSCSI paths
-
-For Talos, K3s, or MicroK8s-style kubelet layouts, override:
-
-- `node.kubeletRootDir`
-
-The chart derives the plugin and registration paths from that root.
-
-For iSCSI nodes, the chart also exposes:
-
-- `node.iscsiDir`
-
-`node.iscsiDir` defaults to `/etc/iscsi`, which matches the upstream manifest. On Talos, you will typically want `/var/iscsi` instead.
-
-If the host `iscsiadm` binary is not at `/usr/sbin/iscsiadm`, set `ISCSIADM_HOST_PATH` through `node.extraEnv`. For Talos, that will typically be `/usr/local/sbin/iscsiadm`.
-
-
-
-## Required and optional chart values
-
-From the driver source, these `config` values are required:
-
-- `config.truenasURL`
-- `config.defaultPool`
-
-And this secret value is required unless you use an external secret:
-
-- `secret.apiKey`
-
-The chart will fail to render unless either `secret.apiKey` is set or `secret.existingSecret.name` points at an existing Secret.
-
-These `config` values are optional:
-
-- `config.nfsServer`
-- `config.iscsiPortal`
-- `config.nvmeofPortal`
-- `config.iscsiIQNBase`
-- `config.truenasInsecure`
-
-That means you can leave `config.nfsServer`, `config.iscsiPortal`, and `config.nvmeofPortal` empty unless you need to force those values. The driver derives NFS/iSCSI defaults from the TrueNAS URL when possible, and only requires the protocol-specific portal when you actually use that protocol.
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
