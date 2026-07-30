@@ -6,7 +6,7 @@ metadata:
   name: my-nfs-pvc
 spec:
   accessModes:
-    - ReadWriteMany  # NFS supports multiple readers/writers
+    - ReadWriteMany # NFS supports multiple readers/writers
   storageClassName: truenas-nfs
   resources:
     requests:

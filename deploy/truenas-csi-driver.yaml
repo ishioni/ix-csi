@@ -158,12 +158,12 @@ metadata:
   namespace: truenas-csi
 data:
   truenasURL: "wss://YOUR-TRUENAS-IP"
-  truenasInsecure: "true"  # Set to "true" for self-signed certificates, "false" or remove for valid certs
+  truenasInsecure: "true" # Set to "true" for self-signed certificates, "false" or remove for valid certs
   defaultPool: "tank"
   nfsServer: "YOUR-TRUENAS-IP"
   iscsiPortal: "YOUR-TRUENAS-IP:3260"
-  nvmeofPortal: "YOUR-TRUENAS-IP:4420"  # Optional: NVMe-oF portal; auto-derived from truenasURL host if omitted
-  iscsiIQNBase: "iqn.2000-01.io.truenas"  # Optional: Custom IQN prefix (default: iqn.2000-01.io.truenas)
+  nvmeofPortal: "YOUR-TRUENAS-IP:4420" # Optional: NVMe-oF portal; auto-derived from truenasURL host if omitted
+  iscsiIQNBase: "iqn.2000-01.io.truenas" # Optional: Custom IQN prefix (default: iqn.2000-01.io.truenas)
 
 ---
 # Controller Deployment
@@ -325,7 +325,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-              
+
         # Liveness Probe
         - name: liveness-probe
           image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0
@@ -371,7 +371,12 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", "mkdir -p /run/lock/iscsi && mv /usr/sbin/iscsiadm /usr/sbin/iscsiadm.orig 2>/dev/null; printf '#!/bin/sh\\nnsenter --mount=/host/proc/1/ns/mnt -- /usr/sbin/iscsiadm \"$@\"\\n' > /usr/sbin/iscsiadm && chmod +x /usr/sbin/iscsiadm; modprobe nvme_tcp 2>/dev/null; modprobe nvme_fabrics 2>/dev/null"]
+                command:
+                  [
+                    "/bin/sh",
+                    "-c",
+                    "mkdir -p /run/lock/iscsi && mv /usr/sbin/iscsiadm /usr/sbin/iscsiadm.orig 2>/dev/null; printf '#!/bin/sh\\nnsenter --mount=/host/proc/1/ns/mnt -- /usr/sbin/iscsiadm \"$@\"\\n' > /usr/sbin/iscsiadm && chmod +x /usr/sbin/iscsiadm; modprobe nvme_tcp 2>/dev/null; modprobe nvme_fabrics 2>/dev/null",
+                  ]
           securityContext:
             privileged: true
           args:
@@ -483,7 +488,7 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
-              
+
         # Liveness Probe
         - name: liveness-probe
           image: registry.k8s.io/sig-storage/livenessprobe:v2.18.0

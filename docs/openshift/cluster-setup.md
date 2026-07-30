@@ -15,18 +15,18 @@ This guide walks through setting up a 3-node compact OpenShift cluster on vSpher
 
 Allocate the following IPs on your vSphere network before starting:
 
-| Purpose | Placeholder | Example |
-|---------|------------|---------|
-| API VIP (Kubernetes API) | `<API_VIP>` | 10.220.15.200 |
-| Ingress VIP (*.apps) | `<INGRESS_VIP>` | 10.220.15.201 |
-| DNS VM | (static IP on the VM) | 10.220.15.205 |
-| master0 | `<MASTER0_IP>` | 10.220.15.210 |
-| master1 | `<MASTER1_IP>` | 10.220.15.211 |
-| master2 | `<MASTER2_IP>` | 10.220.15.212 |
-| Gateway | `<GATEWAY_IP>` | 10.220.0.1 |
-| Subnet CIDR | `<MACHINE_NETWORK_CIDR>` | 10.220.0.0/20 |
-| Prefix length | `<PREFIX_LENGTH>` | 20 |
-| DNS server | `<DNS_SERVER_IP>` | 10.220.15.205 |
+| Purpose                  | Placeholder              | Example       |
+| ------------------------ | ------------------------ | ------------- |
+| API VIP (Kubernetes API) | `<API_VIP>`              | 10.220.15.200 |
+| Ingress VIP (*.apps)     | `<INGRESS_VIP>`          | 10.220.15.201 |
+| DNS VM                   | (static IP on the VM)    | 10.220.15.205 |
+| master0                  | `<MASTER0_IP>`           | 10.220.15.210 |
+| master1                  | `<MASTER1_IP>`           | 10.220.15.211 |
+| master2                  | `<MASTER2_IP>`           | 10.220.15.212 |
+| Gateway                  | `<GATEWAY_IP>`           | 10.220.0.1    |
+| Subnet CIDR              | `<MACHINE_NETWORK_CIDR>` | 10.220.0.0/20 |
+| Prefix length            | `<PREFIX_LENGTH>`        | 20            |
+| DNS server               | `<DNS_SERVER_IP>`        | 10.220.15.205 |
 
 All IPs must be on the same L2 network segment. The API and Ingress VIPs are managed by keepalived and must not be assigned to any VM.
 
@@ -59,16 +59,17 @@ OpenShift requires DNS records for `api.ocp.local`, `api-int.ocp.local`, `*.apps
 
 Create 3 virtual machines with the following specs:
 
-| Setting | Value |
-|---------|-------|
-| vCPU | 16 |
-| RAM | 32 GB |
-| Disk | 200 GB |
-| Firmware | UEFI |
+| Setting         | Value                                 |
+| --------------- | ------------------------------------- |
+| vCPU            | 16                                    |
+| RAM             | 32 GB                                 |
+| Disk            | 200 GB                                |
+| Firmware        | UEFI                                  |
 | Network adapter | VMXNET3, connected to your port group |
-| CD/DVD | Will be connected later |
+| CD/DVD          | Will be connected later               |
 
 For each VM:
+
 1. Create the VM but do **not** power it on.
 2. Record the MAC address of the network adapter (vSphere > VM > Edit Settings > Network adapter > MAC address).
 3. These MAC addresses will be used as `<MASTER0_MAC>`, `<MASTER1_MAC>`, `<MASTER2_MAC>`.
@@ -86,6 +87,7 @@ cp operator/ocp-install/agent-config.yaml ~/ocp-install/
 ### install-config.yaml
 
 Replace the placeholders with your values:
+
 - `<MACHINE_NETWORK_CIDR>` - your subnet CIDR (e.g. `10.220.0.0/20`)
 - `<API_VIP>` - API virtual IP
 - `<INGRESS_VIP>` - Ingress virtual IP
@@ -96,6 +98,7 @@ Replace the placeholders with your values:
 ### agent-config.yaml
 
 Replace the placeholders with your values:
+
 - `<MASTER0_IP>`, `<MASTER1_IP>`, `<MASTER2_IP>` - static IPs for each node
 - `<MASTER0_MAC>`, `<MASTER1_MAC>`, `<MASTER2_MAC>` - VM MAC addresses (must match install-config.yaml)
 - `<PREFIX_LENGTH>` - subnet prefix length (e.g. `20`)

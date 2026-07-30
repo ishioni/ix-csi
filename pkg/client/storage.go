@@ -70,11 +70,6 @@ const (
 	methodZFSResourceQuery = "zfs.resource.query"
 )
 
-// Default iSCSI port
-const (
-	defaultISCSIPort = 3260
-)
-
 // Dataset represents a ZFS dataset in TrueNAS.
 type Dataset struct {
 	ID              string         `json:"id"`
@@ -86,13 +81,13 @@ type Dataset struct {
 	Available       int64          `json:"available"`
 	RefQuota        int64          `json:"refquota"`
 	RefReservation  int64          `json:"refreservation"`
-	Volsize         int64          `json:"volsize"`         // For ZVOLs (iSCSI volumes)
-	Compression     any            `json:"compression"`     // Can be string or object in TrueNAS
-	Deduplication   any            `json:"deduplication"`   // Can be string or object in TrueNAS
-	Sync            any            `json:"sync"`            // Can be string or object in TrueNAS
-	RecordSize      any            `json:"recordsize"`      // Can be string or object in TrueNAS
-	ACLMode         any            `json:"aclmode"`         // Can be string or object in TrueNAS
-	ACLType         any            `json:"acltype"`         // Can be string or object in TrueNAS
+	Volsize         int64          `json:"volsize"`       // For ZVOLs (iSCSI volumes)
+	Compression     any            `json:"compression"`   // Can be string or object in TrueNAS
+	Deduplication   any            `json:"deduplication"` // Can be string or object in TrueNAS
+	Sync            any            `json:"sync"`          // Can be string or object in TrueNAS
+	RecordSize      any            `json:"recordsize"`    // Can be string or object in TrueNAS
+	ACLMode         any            `json:"aclmode"`       // Can be string or object in TrueNAS
+	ACLType         any            `json:"acltype"`       // Can be string or object in TrueNAS
 	ExtraProperties map[string]any `json:"extra_properties,omitempty"`
 }
 
@@ -401,7 +396,7 @@ type SnapshotTask struct {
 type SnapshotTaskSchedule struct {
 	Minute string `json:"minute"`
 	Hour   string `json:"hour"`
-	Dom    string `json:"dom"`   // Day of month
+	Dom    string `json:"dom"` // Day of month
 	Month  string `json:"month"`
 	Dow    string `json:"dow"`   // Day of week
 	Begin  string `json:"begin"` // Start time window
@@ -577,19 +572,6 @@ func getParsedInt64(m map[string]any, key string) int64 {
 	}
 
 	return 0
-}
-
-// getParsedString extracts the "parsed" or "value" field from a TrueNAS property object.
-func getParsedString(m map[string]any, key string) string {
-	if prop, ok := m[key].(map[string]any); ok {
-		if parsed, ok := prop["parsed"].(string); ok {
-			return parsed
-		}
-		if value, ok := prop["value"].(string); ok {
-			return value
-		}
-	}
-	return ""
 }
 
 // parseDatasetResponse parses a TrueNAS PoolDatasetEntry response into a Dataset.

@@ -1,0 +1,72 @@
+# mise is the single source of truth for the project toolchain and tasks.
+
+[tools]
+go = "1.25.0"
+golangci-lint = "2.12.2"
+cosign = "3.1.2"
+helm = "4.2.3"
+helm-docs = "1.14.2"
+"aqua:dadav/helm-schema" = "0.23.4"
+lefthook = "2.1.10"
+oxfmt = "0.60.0"
+yq = "4.53.3"
+zizmor = "1.28.0"
+
+[tasks.build]
+description = "Compile the driver and operator"
+run = "go build ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.test]
+description = "Run unit tests with coverage"
+run = "go test -timeout 30s ./... -coverprofile=cover.out"
+
+[tasks.fmt]
+description = "Format Go sources"
+run = "gofmt -w cmd pkg operator"
+
+[tasks.fmt-check]
+description = "Verify Go formatting"
+run = "test -z \"$(gofmt -l cmd pkg operator)\""
+
+[tasks.oxfmt]
+description = "Format YAML, JSON, Markdown, and other non-Go project files"
+run = "oxfmt --write ."
+
+[tasks.oxfmt-check]
+description = "Verify non-Go project formatting"
+run = "oxfmt --check ."
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = "golangci-lint run"
+
+[tasks.zizmor]
+description = "Audit GitHub Actions workflows for security issues"
+run = "zizmor .github"
+
+[tasks.tidy-check]
+description = "Verify go.mod and go.sum are tidy"
+run = "go mod tidy && git diff --exit-code go.mod go.sum"
+
+[tasks.helm-lint]
+description = "Lint the Helm chart"
+run = "helm lint deploy/helm/truenas-csi --set secret.apiKey=dummy"
+
+[tasks.helm-template]
+description = "Render the Helm chart"
+run = "helm template truenas-csi deploy/helm/truenas-csi --set secret.apiKey=dummy"
+
+[tasks.generate]
+description = "Regenerate committed Helm documentation and values schema"
+run = "helm-docs --chart-search-root=deploy/helm --log-level=warn && helm-schema --chart-search-root deploy/helm/truenas-csi --skip-auto-generation required,additionalProperties --append-newline"
+
+[tasks.generate-check]
+description = "Verify generated Helm files are up to date"
+run = "mise run generate && git diff --exit-code deploy/helm/truenas-csi/README.md deploy/helm/truenas-csi/values.schema.json"
+
+[hooks]
+postinstall = "lefthook install"

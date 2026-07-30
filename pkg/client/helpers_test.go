@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -22,9 +21,9 @@ func testContext(t *testing.T) context.Context {
 // newTestClient creates a Client configured to connect to the mock server.
 func newTestClient(mock *MockTrueNASServer) *Client {
 	return New(Config{
-		URL:         mock.URL,
-		APIKey:      "test-api-key",
-		CallTimeout: testTimeout,
+		URL:          mock.URL,
+		APIKey:       "test-api-key",
+		CallTimeout:  testTimeout,
 		PingInterval: 1 * time.Hour, // Disable ping during tests
 	})
 }
@@ -69,31 +68,11 @@ func assertErrorContains(t *testing.T, err error, substr string) {
 	}
 }
 
-// assertErrorIs fails if err doesn't match target via errors.Is.
-func assertErrorIs(t *testing.T, err, target error) {
-	t.Helper()
-	if err == nil {
-		t.Fatalf("expected error %v, got nil", target)
-	}
-	// Simple check - errors.Is is already imported in client.go
-	if err.Error() != target.Error() && !contains(err.Error(), target.Error()) {
-		t.Fatalf("expected error %v, got: %v", target, err)
-	}
-}
-
 // assertEqual fails if got != want.
 func assertEqual[T comparable](t *testing.T, got, want T) {
 	t.Helper()
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
-	}
-}
-
-// assertNotEqual fails if got == want.
-func assertNotEqual[T comparable](t *testing.T, got, want T) {
-	t.Helper()
-	if got == want {
-		t.Fatalf("got %v, want different value", got)
 	}
 }
 
@@ -105,7 +84,7 @@ func assertNil(t *testing.T, got any) {
 	}
 	// Handle interface containing nil pointer
 	v := reflect.ValueOf(got)
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		return
 	}
 	t.Fatalf("expected nil, got %v", got)
@@ -119,7 +98,7 @@ func assertNotNil(t *testing.T, got any) {
 	}
 	// Handle interface containing nil pointer
 	v := reflect.ValueOf(got)
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		t.Fatal("expected non-nil value, got nil pointer")
 	}
 }
@@ -166,20 +145,6 @@ func assertRequestCount(t *testing.T, mock *MockTrueNASServer, method string, co
 	}
 }
 
-// getRequestParams extracts and unmarshals the params from the first request for a method.
-func getRequestParams[T any](t *testing.T, mock *MockTrueNASServer, method string) T {
-	t.Helper()
-	requests := mock.GetRequestsByMethod(method)
-	if len(requests) == 0 {
-		t.Fatalf("no requests found for method %q", method)
-	}
-	var params T
-	if err := json.Unmarshal(requests[0].Params, &params); err != nil {
-		t.Fatalf("failed to unmarshal params: %v", err)
-	}
-	return params
-}
-
 // contains checks if s contains substr.
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
@@ -204,25 +169,6 @@ type TestCase[I, O any] struct {
 	Expected O
 	WantErr  bool
 	ErrMsg   string
-}
-
-// runTableTests runs a slice of test cases.
-func runTableTests[I, O comparable](t *testing.T, tests []TestCase[I, O], fn func(I) (O, error)) {
-	t.Helper()
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			got, err := fn(tc.Input)
-			if tc.WantErr {
-				assertError(t, err)
-				if tc.ErrMsg != "" {
-					assertErrorContains(t, err, tc.ErrMsg)
-				}
-				return
-			}
-			assertNoError(t, err)
-			assertEqual(t, got, tc.Expected)
-		})
-	}
 }
 
 // BoolTestCase is a test case for boolean results.

@@ -14,11 +14,11 @@ All three must be completed for full CSI certification.
 
 ## Supported Versions
 
-| Component | Minimum Version |
-|-----------|-----------------|
-| OpenShift | 4.20+ |
-| Kubernetes | 1.26+ |
-| TrueNAS SCALE | 25.10.0+ |
+| Component     | Minimum Version |
+| ------------- | --------------- |
+| OpenShift     | 4.20+           |
+| Kubernetes    | 1.26+           |
+| TrueNAS SCALE | 25.10.0+        |
 
 ## Prerequisites
 
@@ -34,10 +34,10 @@ All three must be completed for full CSI certification.
 
 The following images must be certified:
 
-| Image | Registry | Purpose |
-|-------|----------|---------|
-| `truenas-csi` | quay.io/truenas_solutions | CSI driver |
-| `truenas-csi-operator` | quay.io/truenas_solutions | Operator |
+| Image                         | Registry                  | Purpose    |
+| ----------------------------- | ------------------------- | ---------- |
+| `truenas-csi`                 | quay.io/truenas_solutions | CSI driver |
+| `truenas-csi-operator`        | quay.io/truenas_solutions | Operator   |
 | `truenas-csi-operator-bundle` | quay.io/truenas_solutions | OLM bundle |
 
 ### Building UBI-Based Images
@@ -125,6 +125,7 @@ operator-sdk scorecard bundle/
 ```
 
 All 5 tests must pass:
+
 - `olm-bundle-validation`
 - `olm-crds-have-validation`
 - `olm-crds-have-resources`
@@ -166,6 +167,7 @@ capabilities by running the OpenShift E2E CSI test suite against the driver.
 ### Prerequisites
 
 Before CSI certification:
+
 1. Container images must be certified and published (or at least submitted)
 2. Operator must be certified and published (or at least submitted)
 3. An OpenShift cluster with the driver deployed and working (CRC is sufficient)
@@ -197,6 +199,7 @@ Tests are run separately for each protocol (NFS and iSCSI). Each run uses a mani
 file that declares the driver's capabilities for that protocol.
 
 **NFS manifest** (`manifest-nfs.yaml`):
+
 ```yaml
 ShortName: truenas-nfs
 StorageClass:
@@ -221,6 +224,7 @@ DriverInfo:
 ```
 
 **iSCSI manifest** (`manifest-iscsi.yaml`):
+
 ```yaml
 ShortName: truenas-iscsi
 StorageClass:
@@ -246,6 +250,7 @@ DriverInfo:
 ```
 
 Key differences between protocols:
+
 - NFS: `RWX: true`, `block: false`, `nodeExpansion: false` (server-side only)
 - iSCSI: `RWX: false`, `block: true`, `nodeExpansion: true`, `singleNodeVolume: true`
 
@@ -297,6 +302,7 @@ docker run --rm --network=host \
 ```
 
 **Notes:**
+
 - The `ose-tests` image requires a Red Hat registry pull secret (`docker login registry.redhat.io`)
 - Serialized execution (`--max-parallel-tests=1`) takes longer (~45m NFS, ~1h iSCSI) but produces clean results
 - The `--timeout 20m` flag gives extra per-test headroom for slower environments
@@ -313,6 +319,7 @@ grep 'testsuite.*failures' results-iscsi/junit_e2e__*.xml
 ```
 
 Expected results:
+
 - **NFS**: ~55 pass, 0 fail, ~227 skip
 - **iSCSI**: ~74 pass, 0 fail, ~206 skip
 
@@ -350,6 +357,7 @@ The `e2e-monitor-tests__*.xml` and `results.txt` files are not required for subm
 #### Step 3: Wait for review
 
 A Red Hat certification engineer will manually review:
+
 - The JUnit XMLs to verify 0 test failures
 - The test manifests to confirm declared capabilities match the results
 - That the tests were run on a supported OpenShift version
@@ -389,6 +397,7 @@ When releasing a new version:
 ### Annual Recertification
 
 Red Hat requires annual recertification:
+
 1. Re-run all certification tests
 2. Update documentation for any changes
 3. Submit recertification through Partner Connect
@@ -397,21 +406,21 @@ Red Hat requires annual recertification:
 
 ### Preflight Failures
 
-| Check | Common Fix |
-|-------|------------|
-| `RunAsNonRoot` | Set "Privileged" in project settings (CSI driver only) |
-| `HasLicense` | Ensure `/licenses/LICENSE` exists in image |
-| `HasRequiredLabel` | Add missing labels to Dockerfile |
-| `BasedOnUbi` | Use UBI base image |
-| `HasNoProhibitedPackages` | Remove RHEL kernel packages |
+| Check                     | Common Fix                                             |
+| ------------------------- | ------------------------------------------------------ |
+| `RunAsNonRoot`            | Set "Privileged" in project settings (CSI driver only) |
+| `HasLicense`              | Ensure `/licenses/LICENSE` exists in image             |
+| `HasRequiredLabel`        | Add missing labels to Dockerfile                       |
+| `BasedOnUbi`              | Use UBI base image                                     |
+| `HasNoProhibitedPackages` | Remove RHEL kernel packages                            |
 
 ### Scorecard Failures
 
-| Test | Common Fix |
-|------|------------|
-| `olm-spec-descriptors` | Add x-descriptors to CRD spec fields |
-| `olm-status-descriptors` | Add x-descriptors to CRD status fields |
-| `olm-crds-have-resources` | Add resources list to CSV |
+| Test                      | Common Fix                             |
+| ------------------------- | -------------------------------------- |
+| `olm-spec-descriptors`    | Add x-descriptors to CRD spec fields   |
+| `olm-status-descriptors`  | Add x-descriptors to CRD status fields |
+| `olm-crds-have-resources` | Add resources list to CSV              |
 
 ### CSI Test Failures
 
@@ -433,10 +442,10 @@ Red Hat requires annual recertification:
 
 ### Red Hat Connect Project IDs
 
-| Image | Project ID |
-|-------|------------|
-| Driver (`truenas-csi`) | `6984e4411c8ca46590f85669` |
-| Operator (`truenas-csi-operator`) | `6984f4f22806a3280f06bc67` |
+| Image                                  | Project ID                 |
+| -------------------------------------- | -------------------------- |
+| Driver (`truenas-csi`)                 | `6984e4411c8ca46590f85669` |
+| Operator (`truenas-csi-operator`)      | `6984f4f22806a3280f06bc67` |
 | Bundle (`truenas-csi-operator-bundle`) | `6984fe14a9bd925b3f2f2502` |
 
 ### Build and Push All Images

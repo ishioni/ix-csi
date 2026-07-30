@@ -43,11 +43,13 @@ oc patch subscription truenas-csi-operator -n openshift-operators \
 Before upgrading:
 
 1. **Backup TrueNASCSI CR configuration**
+
    ```bash
    oc get truenascsi truenas -o yaml > truenas-backup.yaml
    ```
 
 2. **Check for pending volume operations**
+
    ```bash
    # Ensure no volumes are being provisioned/deleted
    oc get pvc --all-namespaces | grep -i pending
@@ -94,9 +96,9 @@ oc get truenascsi truenas -o yaml
 
 ### Operator and Driver Versions
 
-| Operator Version | Driver Version | OpenShift | Notes |
-|-----------------|----------------|-----------|-------|
-| 0.1.0 | 0.1.0 | 4.20 | Initial release |
+| Operator Version | Driver Version | OpenShift | Notes           |
+| ---------------- | -------------- | --------- | --------------- |
+| 0.1.0            | 0.1.0          | 4.20      | Initial release |
 
 ### Kubernetes API Compatibility
 
