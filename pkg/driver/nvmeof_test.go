@@ -218,7 +218,7 @@ func TestNVMeDisconnectArgs(t *testing.T) {
 		t.Fatalf("nvmeDisconnect: %v", err)
 	}
 	args := (*calls)[0].args
-	if !(len(args) >= 1 && args[0] == "disconnect") || !hasFlag(args, "-n", "nqn.x:vol") {
+	if len(args) < 1 || args[0] != "disconnect" || !hasFlag(args, "-n", "nqn.x:vol") {
 		t.Errorf("unexpected disconnect args %v", args)
 	}
 }

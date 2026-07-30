@@ -79,7 +79,7 @@ func validateFlags() error {
 		if hostname, err := os.Hostname(); err == nil {
 			*nodeID = hostname
 		} else {
-			return fmt.Errorf("Node ID is required but could not be determined")
+			return fmt.Errorf("node ID is required but could not be determined")
 		}
 	}
 

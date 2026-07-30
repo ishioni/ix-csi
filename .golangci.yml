@@ -1,0 +1,30 @@
+version: "2"
+
+run:
+  allow-parallel-runners: true
+
+linters:
+  # Start with checks that are actionable on the existing codebase. The
+  # legacy cleanup paths intentionally ignore many best-effort errors; enable
+  # errcheck after those paths have been audited separately.
+  default: none
+  enable:
+    - copyloopvar
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)_test.go
+        linters:
+          - lll
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax

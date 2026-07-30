@@ -70,11 +70,6 @@ const (
 	methodZFSResourceQuery = "zfs.resource.query"
 )
 
-// Default iSCSI port
-const (
-	defaultISCSIPort = 3260
-)
-
 // Dataset represents a ZFS dataset in TrueNAS.
 type Dataset struct {
 	ID              string         `json:"id"`
@@ -577,19 +572,6 @@ func getParsedInt64(m map[string]any, key string) int64 {
 	}
 
 	return 0
-}
-
-// getParsedString extracts the "parsed" or "value" field from a TrueNAS property object.
-func getParsedString(m map[string]any, key string) string {
-	if prop, ok := m[key].(map[string]any); ok {
-		if parsed, ok := prop["parsed"].(string); ok {
-			return parsed
-		}
-		if value, ok := prop["value"].(string); ok {
-			return value
-		}
-	}
-	return ""
 }
 
 // parseDatasetResponse parses a TrueNAS PoolDatasetEntry response into a Dataset.
