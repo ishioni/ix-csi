@@ -52,7 +52,7 @@ func TestDetachedSnapshotParts(t *testing.T) {
 		t.Fatalf("detachedSnapshotParts returned %q/%q", source, name)
 	}
 
-	for _, id := range []string{"tank/volumes/pvc-a@daily", "tank/volumes/pvc-a", "../pvc-a/daily", "tank/volumes/../pvc-a/daily"} {
+	for _, id := range []string{"tank/volumes/pvc-a@daily", "tank/volumes/pvc-a/", "../pvc-a/daily", "tank/volumes/../pvc-a/daily"} {
 		if _, _, err := detachedSnapshotParts(id); err == nil {
 			t.Errorf("detachedSnapshotParts accepted invalid ID %q", id)
 		}
