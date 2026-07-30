@@ -53,6 +53,12 @@ const (
 	defaultNFSMapAllUser  = "root"
 	defaultNFSMapAllGroup = "wheel"
 
+	// defaultNFSMapRootUser and defaultNFSMapRootGroup are used when nfs.rootSquash
+	// is disabled: incoming root maps to root:wheel (no_root_squash) and other UIDs
+	// are preserved, so a pod fsGroup can chown the volume root.
+	defaultNFSMapRootUser  = "root"
+	defaultNFSMapRootGroup = "wheel"
+
 	// Default values
 	defaultVolBlockSize = "16K"
 	defaultSyncMode     = "STANDARD"
@@ -441,6 +447,42 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	return resp, nil
 }
 
+// applyNFSShareParameters configures an NFS share's user/group mapping and access
+// lists from StorageClass parameters. By default all access is squashed to a
+// single user via mapall (defaultNFSMapAllUser:defaultNFSMapAllGroup, overridable
+// via nfs.mapAllUser/nfs.mapAllGroup). Setting nfs.rootSquash="false" instead maps
+// incoming root to root:wheel (no_root_squash) and preserves other UIDs, so that a
+// pod fsGroup (the driver sets CSIDriver fsGroupPolicy: File) can chown the volume
+// root for ownership-sensitive non-root workloads such as PostgreSQL/CNPG. mapall
+// and no_root_squash are mutually exclusive — mapall would re-squash root — so the
+// mapall parameters are ignored when root squashing is disabled.
+func applyNFSShareParameters(opts *client.NFSShareCreateOptions, parameters map[string]string) {
+	stringPtr := func(s string) *string { return &s }
+
+	if val, ok := parameters[paramNFSRootSquash]; ok && strings.EqualFold(val, "false") {
+		opts.MapRootUser = stringPtr(defaultNFSMapRootUser)
+		opts.MapRootGroup = stringPtr(defaultNFSMapRootGroup)
+	} else {
+		mapAllUser := defaultNFSMapAllUser
+		if val, ok := parameters[paramNFSMapAllUser]; ok && val != "" {
+			mapAllUser = val
+		}
+		mapAllGroup := defaultNFSMapAllGroup
+		if val, ok := parameters[paramNFSMapAllGroup]; ok && val != "" {
+			mapAllGroup = val
+		}
+		opts.MapAllUser = stringPtr(mapAllUser)
+		opts.MapAllGroup = stringPtr(mapAllGroup)
+	}
+
+	if hosts, ok := parameters[paramNFSHosts]; ok {
+		opts.Hosts = strings.Split(hosts, ",")
+	}
+	if networks, ok := parameters[paramNFSNetworks]; ok {
+		opts.Networks = strings.Split(networks, ",")
+	}
+}
+
 // createNFSVolume creates a ZFS filesystem dataset and NFS share for the volume.
 func (s *ControllerServer) createNFSVolume(ctx context.Context, volumeID, datasetPath string, capacityBytes int64, parameters map[string]string) (*VolumeInfo, error) {
 	compression := CompressionLZ4
@@ -492,33 +534,13 @@ func (s *ControllerServer) createNFSVolume(ctx context.Context, volumeID, datase
 		mountpoint = filepath.Join(DefaultMountpoint, datasetPath)
 	}
 
-	stringPtr := func(s string) *string { return &s }
-
-	mapAllUser := defaultNFSMapAllUser
-	if val, ok := parameters[paramNFSMapAllUser]; ok && val != "" {
-		mapAllUser = val
-	}
-	mapAllGroup := defaultNFSMapAllGroup
-	if val, ok := parameters[paramNFSMapAllGroup]; ok && val != "" {
-		mapAllGroup = val
-	}
-
 	shareOpts := &client.NFSShareCreateOptions{
-		Path:        mountpoint,
-		Comment:     fmt.Sprintf("CSI volume %s", volumeID),
-		Enabled:     true,
-		ReadOnly:    false,
-		MapAllUser:  stringPtr(mapAllUser),
-		MapAllGroup: stringPtr(mapAllGroup),
+		Path:     mountpoint,
+		Comment:  fmt.Sprintf("CSI volume %s", volumeID),
+		Enabled:  true,
+		ReadOnly: false,
 	}
-
-	if hosts, ok := parameters[paramNFSHosts]; ok {
-		shareOpts.Hosts = strings.Split(hosts, ",")
-	}
-
-	if networks, ok := parameters[paramNFSNetworks]; ok {
-		shareOpts.Networks = strings.Split(networks, ",")
-	}
+	applyNFSShareParameters(shareOpts, parameters)
 
 	s.driver.Log().V(LogLevelDebug).Info("Creating NFS share", "mountpoint", mountpoint, "hosts", shareOpts.Hosts, "networks", shareOpts.Networks)
 	share, err := s.driver.Client().CreateNFSShare(ctx, shareOpts)
@@ -946,7 +968,7 @@ func (s *ControllerServer) deleteNVMeOFResources(ctx context.Context, volInfo *V
 // Returns the volume context map with targetPortal, targetIQN, and lun populated.
 func (s *ControllerServer) ensureISCSIChain(ctx context.Context, volumeID, datasetPath string, parameters map[string]string) (map[string]string, error) {
 	zvolPath := fmt.Sprintf("zvol/%s", datasetPath)
-	iqnBase := s.driver.GetISCSIIQNBaseFromParameters(parameters)
+	iqnBase := s.driver.ResolveISCSIIQNBase(ctx, parameters)
 	targetSuffix := makeISCSITargetSuffix(volumeID)
 	extentName := makeISCSIExtentName(volumeID)
 
@@ -1046,6 +1068,26 @@ func copyParameters(m map[string]string) map[string]string {
 }
 
 // createISCSIVolume creates a ZVOL with iSCSI target, extent, and optional CHAP authentication.
+// bridgeISCSICHAPParams copies the controller-side CHAP StorageClass parameters
+// (used to create the TrueNAS target auth) into the node-side names the node reads
+// from the volume context to authenticate the session, so a StorageClass only
+// needs to specify the credentials once. Standard CHAP (iscsi.chapUser/chapSecret)
+// maps to the initiator's outgoing credentials (iscsi.chapUsername/chapPassword);
+// mutual CHAP (iscsi.chapPeerUser/chapPeerSecret) maps to the incoming credentials
+// the initiator expects the target to present (iscsi.chapUsernameIn/chapPasswordIn).
+// An explicitly-set node-side value is left untouched.
+func bridgeISCSICHAPParams(parameters map[string]string) {
+	copyIfUnset := func(dst, src string) {
+		if parameters[dst] == "" && parameters[src] != "" {
+			parameters[dst] = parameters[src]
+		}
+	}
+	copyIfUnset(paramCHAPUsername, paramISCSIChapUser)
+	copyIfUnset(paramCHAPPassword, paramISCSIChapSecret)
+	copyIfUnset(paramCHAPUsernameIn, paramISCSIChapPeerUser)
+	copyIfUnset(paramCHAPPasswordIn, paramISCSIChapPeerSecret)
+}
+
 func (s *ControllerServer) createISCSIVolume(ctx context.Context, volumeID, datasetPath string, capacityBytes int64, parameters map[string]string) (*VolumeInfo, error) {
 	portalID, err := s.driver.ISCSIPortalID(ctx)
 	if err != nil {
@@ -1097,6 +1139,11 @@ func (s *ControllerServer) createISCSIVolume(ctx context.Context, volumeID, data
 		authID = auth.ID
 		authTag = auth.Tag
 		s.driver.Log().V(LogLevelDebug).Info("Created CHAP auth for iSCSI target", "authId", authID, "tag", authTag, "user", chapUser)
+
+		// The target now requires CHAP; make sure the node can authenticate by
+		// mirroring the credentials into the node-side parameters carried in the
+		// volume context.
+		bridgeISCSICHAPParams(parameters)
 	}
 
 	// Create initiator group if specified
@@ -1121,7 +1168,7 @@ func (s *ControllerServer) createISCSIVolume(ctx context.Context, volumeID, data
 		s.driver.Log().V(LogLevelDebug).Info("Created initiator group for iSCSI target", "initiatorId", initiatorID, "initiators", initiators)
 	}
 
-	iqnBase := s.driver.GetISCSIIQNBaseFromParameters(parameters)
+	iqnBase := s.driver.ResolveISCSIIQNBase(ctx, parameters)
 
 	targetSuffix := makeISCSITargetSuffix(volumeID)
 	target, err := s.driver.Client().CreateISCSITargetWithAuth(ctx, targetSuffix, fmt.Sprintf("CSI volume %s", volumeID), portalID, authTag, initiatorID)
@@ -1428,33 +1475,13 @@ func (s *ControllerServer) createNFSShareForClone(ctx context.Context, volumeID,
 		mountpoint = fmt.Sprintf("/mnt/%s", datasetPath)
 	}
 
-	stringPtr := func(s string) *string { return &s }
-
-	mapAllUser := defaultNFSMapAllUser
-	if val, ok := parameters[paramNFSMapAllUser]; ok && val != "" {
-		mapAllUser = val
-	}
-	mapAllGroup := defaultNFSMapAllGroup
-	if val, ok := parameters[paramNFSMapAllGroup]; ok && val != "" {
-		mapAllGroup = val
-	}
-
 	shareOpts := &client.NFSShareCreateOptions{
-		Path:        mountpoint,
-		Comment:     fmt.Sprintf("CSI volume clone %s", volumeID),
-		Enabled:     true,
-		ReadOnly:    false,
-		MapAllUser:  stringPtr(mapAllUser),
-		MapAllGroup: stringPtr(mapAllGroup),
+		Path:     mountpoint,
+		Comment:  fmt.Sprintf("CSI volume clone %s", volumeID),
+		Enabled:  true,
+		ReadOnly: false,
 	}
-
-	if hosts, ok := parameters[paramNFSHosts]; ok {
-		shareOpts.Hosts = strings.Split(hosts, ",")
-	}
-
-	if networks, ok := parameters[paramNFSNetworks]; ok {
-		shareOpts.Networks = strings.Split(networks, ",")
-	}
+	applyNFSShareParameters(shareOpts, parameters)
 
 	share, err := s.driver.Client().CreateNFSShare(ctx, shareOpts)
 	if err != nil {
@@ -1488,7 +1515,7 @@ func (s *ControllerServer) createISCSITargetForClone(ctx context.Context, volume
 		return nil, fmt.Errorf("failed to resolve iSCSI portal ID: %w", err)
 	}
 
-	iqnBase := s.driver.GetISCSIIQNBaseFromParameters(parameters)
+	iqnBase := s.driver.ResolveISCSIIQNBase(ctx, parameters)
 
 	targetSuffix := makeISCSITargetSuffix(volumeID)
 	target, err := s.driver.Client().CreateISCSITarget(ctx, targetSuffix, fmt.Sprintf("CSI volume clone %s", volumeID), portalID)
@@ -1794,7 +1821,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 				publishContext[PublishContextTargetPortal] = s.driver.ISCSIPortal()
 				if targetExtent, err := s.driver.Client().GetISCSITargetExtentByExtent(ctx, extent.ID); err == nil {
 					if target, err := s.driver.Client().GetISCSITargetByID(ctx, targetExtent.Target); err == nil {
-						fullIQN := fmt.Sprintf("%s:%s", s.driver.ISCSIIQNBase(), target.Name)
+						fullIQN := fmt.Sprintf("%s:%s", s.driver.ResolveISCSIIQNBase(ctx, nil), target.Name)
 						publishContext[PublishContextTargetIQN] = fullIQN
 						publishContext[PublishContextLUN] = fmt.Sprintf("%d", targetExtent.LunID)
 						s.driver.Log().Info("Reconstructed iSCSI info from TrueNAS", "volumeId", req.VolumeId, "targetIQN", fullIQN, "lun", targetExtent.LunID)

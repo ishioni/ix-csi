@@ -159,49 +159,65 @@ sudo systemctl enable microk8s-mount-propagation
 
 #### General Parameters
 
-| Parameter        | Description                                    | Values                                                                                                            |
-| ---------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `protocol`       | Storage protocol                               | `nfs`, `iscsi`, `nvmeof`                                                                                          |
-| `pool`           | ZFS pool (overrides default)                   | pool name                                                                                                         |
-| `datasetPath`    | Nested path below the pool for created volumes | relative path, e.g. `talos/volumes`                                                                               |
-| `compression`    | ZFS compression algorithm                      | `OFF`, `LZ4`, `GZIP`, `GZIP-1`..`GZIP-9`, `ZSTD`, `ZSTD-1`, `ZSTD-3`, `ZSTD-5`, `ZSTD-7`, `ZSTD-9`, `ZLE`, `LZJB` |
-| `zfs.<property>` | Raw ZFS property passthrough                   | e.g. `zfs.atime`, `zfs.recordsize`                                                                                |
+| Parameter     | Description                                                                                                                                                                                                                          | Values                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `protocol`    | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
+| `pool`        | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
+| `datasetPath` | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
+| `compression` | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
+| `sync`        | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
+| `sparse`      | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+
+Delete-time behavior (optional): `forceDelete` (`true`/`false`) forces removal of
+busy resources; `deleteExtentsWithTarget` (`true`/`false`, default `true`) removes
+the iSCSI extent along with its target.
 
 #### NFS Parameters
 
-| Parameter          | Description                          | Values                           |
-| ------------------ | ------------------------------------ | -------------------------------- |
-| `sync`             | ZFS sync mode                        | `STANDARD`, `ALWAYS`, `DISABLED` |
-| `nfs.hosts`        | Allowed hosts                        | `10.0.0.0/8,192.168.1.0/24`      |
-| `nfs.networks`     | Allowed networks                     | `10.0.0.0/8`                     |
-| `nfs.mountOptions` | Client mount options                 | `hard,nfsvers=4.1`               |
-| `nfs.mapAllUser`   | NFS user mapping (default: `root`)   | `postgres`                       |
-| `nfs.mapAllGroup`  | NFS group mapping (default: `wheel`) | `postgres`                       |
+| Parameter          | Description                                                                                                                                                                                                        | Example                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| `nfs.hosts`        | Allowed hosts                                                                                                                                                                                                      | `10.0.0.0/8,192.168.1.0/24` |
+| `nfs.networks`     | Allowed networks                                                                                                                                                                                                   | `10.0.0.0/8`                |
+| `nfs.mountOptions` | Client mount options                                                                                                                                                                                               | `hard,nfsvers=4.1`          |
+| `nfs.mapAllUser`   | NFS user mapping (default: `root`)                                                                                                                                                                                 | `postgres`                  |
+| `nfs.mapAllGroup`  | NFS group mapping (default: `wheel`)                                                                                                                                                                               | `postgres`                  |
+| `nfs.rootSquash`   | Squash all access to the mapped user (default: `true`). Set `false` for `no_root_squash` so a pod `fsGroup` can chown the volume root — required for ownership-sensitive non-root workloads (e.g. PostgreSQL/CNPG) | `false`                     |
+
+By default an NFS share squashes all client access to a single user (`mapall`,
+`root:wheel`). Ownership-sensitive workloads that run as a non-root user (such as
+PostgreSQL/CloudNativePG) need to own their data directory, which `mapall` cannot
+provide. Set `nfs.rootSquash: "false"` to switch the share to `no_root_squash`:
+incoming root is preserved so the kubelet (via the driver's `fsGroupPolicy: File`)
+can chown the volume root to the pod's `fsGroup`, and non-root UIDs are no longer
+squashed. Requires the workload to set a pod `securityContext.fsGroup`. See
+`examples/storageclass-nfs-fsgroup.yaml`.
 
 #### iSCSI Parameters
 
-| Parameter                 | Description                          | Values                                                     |
-| ------------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| `volblocksize`            | ZVOL block size                      | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
-| `sparse`                  | Thin-provision the ZVOL              | `true`, `false`                                            |
-| `iscsi.blocksize`         | iSCSI logical block size             | `512`, `1024`, `2048`, `4096`                              |
-| `iscsi.iqn-base`          | Base IQN for generated targets       | string                                                     |
-| `iscsi.iqn-prefix`        | Legacy alias for `iscsi.iqn-base`    | string                                                     |
-| `iscsi.chapUser`          | CHAP username                        | string                                                     |
-| `iscsi.chapSecret`        | CHAP password (12-16 chars)          | string                                                     |
-| `iscsi.chapPeerUser`      | Mutual CHAP peer user                | string                                                     |
-| `iscsi.chapPeerSecret`    | Mutual CHAP peer password            | string                                                     |
-| `iscsi.initiators`        | Allowed initiator IQNs               | comma-separated                                            |
-| `iscsi.networks`          | Allowed network CIDRs                | comma-separated                                            |
-| `forceDelete`             | Force deletion of iSCSI resources    | `true`, `false`                                            |
-| `deleteExtentsWithTarget` | Delete extents along with the target | `true`, `false`                                            |
+| Parameter                  | Description                                                                                  | Values                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `volblocksize`             | ZVOL block size                                                                              | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
+| `iscsi.blocksize`          | iSCSI logical block size                                                                     | `512`, `1024`, `2048`, `4096`                              |
+| `iscsi.iqn-base`           | Override the IQN base (auto-derived from the appliance's `iscsi.global.basename` by default) | IQN string                                                 |
+| `iscsi.initiators`         | Allowed initiator IQNs                                                                       | comma-separated                                            |
+| `iscsi.chapUser`           | CHAP username                                                                                | string                                                     |
+| `iscsi.chapSecret`         | CHAP password (12-16 chars)                                                                  | string                                                     |
+| `iscsi.chapPeerUser`       | Mutual CHAP peer user                                                                        | string                                                     |
+| `iscsi.chapPeerSecret`     | Mutual CHAP peer password                                                                    | string                                                     |
+| `iscsi.multipathEnabled`   | Enable multipath for the session (node-side); default `false`                                | `true`, `false`                                            |
+| `iscsi.persistentSessions` | Keep the iSCSI session persistent (node-side); default `false`                               | `true`, `false`                                            |
+
+> **IPv4 only:** iSCSI portals must be IPv4. The pinned `csi-lib-iscsi` mis-parses
+> IPv6 portal addresses, so iSCSI staging fails on IPv6-only clusters — use NFS
+> there. The driver fails fast with a clear error if an IPv6 iSCSI portal is
+> configured.
 
 #### NVMe-oF Parameters
 
+NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is optional.
+
 | Parameter              | Description                                | Values                                                     |
 | ---------------------- | ------------------------------------------ | ---------------------------------------------------------- |
-| `volblocksize`         | ZVOL block size                            | `512`, `1K`, `2K`, `4K`, `8K`, `16K`, `32K`, `64K`, `128K` |
-| `sparse`               | Thin-provision the ZVOL                    | `true`, `false`                                            |
 | `nvmeof.hostNQN`       | Authorized host NQN (required for DH-CHAP) | `nqn.2014-08.org.nvmexpress:uuid:...`                      |
 | `nvmeof.dhchapKey`     | DH-CHAP host key                           | `DHHC-1:00:...`                                            |
 | `nvmeof.dhchapCtrlKey` | Mutual DH-CHAP controller key              | `DHHC-1:00:...`                                            |
@@ -220,14 +236,13 @@ sudo systemctl enable microk8s-mount-propagation
 
 #### Encryption Parameters
 
-| Parameter                | Description                   | Values                                                      |
-| ------------------------ | ----------------------------- | ----------------------------------------------------------- |
-| `encryption`             | Enable encryption             | `true`, `false`                                             |
-| `encryption.algorithm`   | Encryption algorithm          | Defaults to `AES-256-GCM`                                   |
-| `encryption.passphrase`  | Passphrase                    | Minimum 8 chars per TrueNAS                                 |
-| `encryption.key`         | Hex-encoded raw key           | Typically 64 hex chars                                      |
-| `encryption.generateKey` | Ask TrueNAS to generate a key | `true`, `false`                                             |
-| `encryption.pbkdf2iters` | PBKDF2 iterations             | Minimum `100000`; defaults to TrueNAS behavior when omitted |
+| Parameter                | Description                | Values                       |
+| ------------------------ | -------------------------- | ---------------------------- |
+| `encryption`             | Enable encryption          | `true`, `false`              |
+| `encryption.algorithm`   | Encryption algorithm       | `AES-256-GCM`, `AES-128-CCM` |
+| `encryption.passphrase`  | Passphrase (min 8 chars)   | string                       |
+| `encryption.key`         | Hex-encoded key (64 chars) | string                       |
+| `encryption.generateKey` | Auto-generate key          | `true`, `false`              |
 
 ## Examples
 
@@ -235,6 +250,7 @@ See the [`examples/`](examples/) folder for sample configurations:
 
 - `storageclass-nfs.yaml` - Basic NFS StorageClass
 - `storageclass-nfs-compressed.yaml` - NFS with ZSTD compression
+- `storageclass-nfs-fsgroup.yaml` - NFS for ownership-sensitive non-root workloads (no_root_squash + pod fsGroup)
 - `storageclass-iscsi.yaml` - Basic iSCSI StorageClass
 - `storageclass-iscsi-chap.yaml` - iSCSI with CHAP authentication
 - `storageclass-nvmeof.yaml` - Basic NVMe-oF/TCP StorageClass
@@ -335,6 +351,7 @@ The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and is designed for Oper
 - [Installation Guide](docs/openshift/installation.md) - Detailed installation steps
 - [Configuration Reference](docs/openshift/configuration.md) - CRD and StorageClass options
 - [Upgrade Guide](docs/openshift/upgrade.md) - Upgrade procedures
+- [Cluster Setup Guide](docs/openshift/cluster-setup.md) - Set up an OpenShift cluster on vSphere (agent-based install) for testing/certification
 - [Red Hat Certification Guide](docs/openshift/certification.md) - Certification process and requirements
 
 ## Demo Scripts

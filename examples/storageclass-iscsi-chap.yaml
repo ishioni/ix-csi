@@ -10,7 +10,8 @@ parameters:
   compression: "LZ4"
   volblocksize: "16K"
   iscsi.blocksize: "4096"
-  # CHAP authentication credentials
+  # CHAP authentication credentials. These are used both to create the TrueNAS
+  # target auth and to authenticate the node's iSCSI session — set them once here.
   # Note: For production, consider using Kubernetes secrets
   iscsi.chapUser: "chapuser"
   iscsi.chapSecret: "chappassword123" # Must be 12-16 characters
@@ -19,8 +20,6 @@ parameters:
   # iscsi.chapPeerSecret: "peerpassword123"
   # Restrict access to specific initiator IQNs (optional)
   # iscsi.initiators: "iqn.2024-01.com.example:node1,iqn.2024-01.com.example:node2"
-  # Restrict access to specific networks (optional)
-  # iscsi.networks: "10.0.0.0/8,192.168.0.0/16"
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
