@@ -5,6 +5,6 @@ kind: VolumeSnapshotClass
 metadata:
   name: truenas-snapclass
 driver: csi.truenas.io
-deletionPolicy: Delete  # Delete snapshot when VolumeSnapshot is deleted
+deletionPolicy: Delete # Delete snapshot when VolumeSnapshot is deleted
 # Alternative: Retain - keep snapshot even after VolumeSnapshot deletion
 # deletionPolicy: Retain

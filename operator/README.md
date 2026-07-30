@@ -14,11 +14,11 @@ The TrueNAS CSI Operator automates the deployment and lifecycle management of th
 
 ## Supported Versions
 
-| Component | Minimum Version |
-|-----------|-----------------|
-| OpenShift | 4.20+ |
-| Kubernetes | 1.26+ |
-| TrueNAS SCALE | 25.10.0+ |
+| Component     | Minimum Version |
+| ------------- | --------------- |
+| OpenShift     | 4.20+           |
+| Kubernetes    | 1.26+           |
+| TrueNAS SCALE | 25.10.0+        |
 
 ## Prerequisites
 
@@ -87,6 +87,7 @@ make lint
 Integration tests verify end-to-end volume provisioning against a real TrueNAS instance on an OpenShift cluster (CRC or full OpenShift).
 
 **Prerequisites:**
+
 - CRC or OpenShift cluster running and accessible via `oc`
 - Logged in with cluster-admin privileges: `oc login -u kubeadmin ...`
 - TrueNAS SCALE 25.10.0+ accessible from cluster nodes
@@ -114,27 +115,31 @@ make release
 **Automatic Setup:**
 
 The test suite automatically handles the following (no manual steps required):
+
 - Installs VolumeSnapshot CRDs from [kubernetes-csi/external-snapshotter](https://github.com/kubernetes-csi/external-snapshotter)
 - Deploys the snapshot controller for snapshot reconciliation
 - Applies SecurityContextConstraints for OpenShift
 - Deploys and undeploys the operator
 
 **Required environment variables:**
-| Variable | Description |
-|----------|-------------|
-| `TRUENAS_IP` | TrueNAS IP address |
+
+| Variable          | Description                |
+| ----------------- | -------------------------- |
+| `TRUENAS_IP`      | TrueNAS IP address         |
 | `TRUENAS_API_KEY` | API key for authentication |
 
 **Optional environment variables:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TRUENAS_POOL` | `tank` | ZFS pool for test volumes |
-| `TRUENAS_INSECURE` | `true` | Skip TLS verification |
-| `OPERATOR_IMAGE` | `quay.io/truenas_solutions/truenas-csi-operator:v0.1.0` | Operator image to deploy |
-| `DRIVER_IMAGE` | `quay.io/truenas_solutions/truenas-csi:latest` | CSI driver image |
-| `SKIP_OPERATOR_DEPLOY` | `false` | Skip operator deployment if already deployed |
+
+| Variable               | Default                                                 | Description                                  |
+| ---------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| `TRUENAS_POOL`         | `tank`                                                  | ZFS pool for test volumes                    |
+| `TRUENAS_INSECURE`     | `true`                                                  | Skip TLS verification                        |
+| `OPERATOR_IMAGE`       | `quay.io/truenas_solutions/truenas-csi-operator:v0.1.0` | Operator image to deploy                     |
+| `DRIVER_IMAGE`         | `quay.io/truenas_solutions/truenas-csi:latest`          | CSI driver image                             |
+| `SKIP_OPERATOR_DEPLOY` | `false`                                                 | Skip operator deployment if already deployed |
 
 **Run the tests:**
+
 ```bash
 # Basic usage (from the operator/ directory)
 make test-integration TRUENAS_IP=192.168.1.100 TRUENAS_API_KEY=1-abcdef123456
@@ -148,6 +153,7 @@ make test-integration
 ```
 
 **Complete workflow example:**
+
 ```bash
 # 1. Start CRC and login
 crc start
@@ -164,6 +170,7 @@ make test-integration TRUENAS_IP=10.0.0.100 TRUENAS_API_KEY=1-your-api-key TRUEN
 ```
 
 **What the tests cover:**
+
 - NFS volume provisioning and deletion
 - iSCSI volume provisioning
 - Volume expansion
@@ -216,14 +223,14 @@ make undeploy
 
 The operator reads sidecar images from environment variables:
 
-| Variable | Description |
-|----------|-------------|
-| `PROVISIONER_IMAGE` | CSI provisioner sidecar image |
-| `ATTACHER_IMAGE` | CSI attacher sidecar image |
-| `SNAPSHOTTER_IMAGE` | CSI snapshotter sidecar image |
-| `RESIZER_IMAGE` | CSI resizer sidecar image |
+| Variable                      | Description                         |
+| ----------------------------- | ----------------------------------- |
+| `PROVISIONER_IMAGE`           | CSI provisioner sidecar image       |
+| `ATTACHER_IMAGE`              | CSI attacher sidecar image          |
+| `SNAPSHOTTER_IMAGE`           | CSI snapshotter sidecar image       |
+| `RESIZER_IMAGE`               | CSI resizer sidecar image           |
 | `NODE_DRIVER_REGISTRAR_IMAGE` | Node driver registrar sidecar image |
-| `LIVENESS_PROBE_IMAGE` | Liveness probe sidecar image |
+| `LIVENESS_PROBE_IMAGE`        | Liveness probe sidecar image        |
 
 ### TrueNASCSI Custom Resource
 
@@ -319,11 +326,11 @@ The controller uses standard controller-runtime error handling:
 
 ### Status Conditions
 
-| Condition | Description |
-|-----------|-------------|
-| `Ready` | All components are running |
+| Condition     | Description                   |
+| ------------- | ----------------------------- |
+| `Ready`       | All components are running    |
 | `Progressing` | Components are being deployed |
-| `Degraded` | Reconciliation failed |
+| `Degraded`    | Reconciliation failed         |
 
 ## OLM Bundle and CSV Markers
 
@@ -334,18 +341,21 @@ The operator uses OLM (Operator Lifecycle Manager) for distribution via Operator
 CSV (ClusterServiceVersion) markers in `api/v1alpha1/truenascsi_types.go` automatically generate UI descriptors for the OperatorHub console. These markers define how fields appear in the OpenShift UI.
 
 **Spec field markers:**
+
 ```go
 // +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="TrueNAS URL",xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 TrueNASURL string `json:"truenasURL"`
 ```
 
 **Status field markers:**
+
 ```go
 // +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase",xDescriptors="urn:alm:descriptor:io.kubernetes.phase"
 Phase string `json:"phase,omitempty"`
 ```
 
 **Resource markers (on the main type):**
+
 ```go
 // +operator-sdk:csv:customresourcedefinitions:displayName="TrueNAS CSI",resources={{Deployment,v1},{DaemonSet,v1},{ServiceAccount,v1}}
 type TrueNASCSI struct { ... }
@@ -353,15 +363,15 @@ type TrueNASCSI struct { ... }
 
 ### Common xDescriptors
 
-| Descriptor | Use Case |
-|------------|----------|
-| `urn:alm:descriptor:com.tectonic.ui:text` | Text input field |
-| `urn:alm:descriptor:com.tectonic.ui:number` | Numeric input |
-| `urn:alm:descriptor:com.tectonic.ui:booleanSwitch` | Toggle switch |
-| `urn:alm:descriptor:io.kubernetes:Secret` | Secret selector |
-| `urn:alm:descriptor:com.tectonic.ui:podCount` | Pod replica count |
-| `urn:alm:descriptor:io.kubernetes.phase` | Status phase display |
-| `urn:alm:descriptor:io.kubernetes.conditions` | Conditions table |
+| Descriptor                                         | Use Case             |
+| -------------------------------------------------- | -------------------- |
+| `urn:alm:descriptor:com.tectonic.ui:text`          | Text input field     |
+| `urn:alm:descriptor:com.tectonic.ui:number`        | Numeric input        |
+| `urn:alm:descriptor:com.tectonic.ui:booleanSwitch` | Toggle switch        |
+| `urn:alm:descriptor:io.kubernetes:Secret`          | Secret selector      |
+| `urn:alm:descriptor:com.tectonic.ui:podCount`      | Pod replica count    |
+| `urn:alm:descriptor:io.kubernetes.phase`           | Status phase display |
+| `urn:alm:descriptor:io.kubernetes.conditions`      | Conditions table     |
 
 ### Regenerating the Bundle
 
@@ -378,6 +388,7 @@ The CSV markers ensure that `specDescriptors`, `statusDescriptors`, and `resourc
 Scorecard validates the operator bundle against OLM best practices and Red Hat certification requirements.
 
 **Run scorecard:**
+
 ```bash
 # From the operator directory
 operator-sdk scorecard bundle/
@@ -388,14 +399,14 @@ make scorecard
 
 **Required tests for certification:**
 
-| Test | Description |
-|------|-------------|
-| `olm-bundle-validation` | Bundle structure and metadata |
-| `olm-crds-have-validation` | CRD has OpenAPI validation |
-| `olm-crds-have-resources` | CSV lists created resources |
-| `olm-spec-descriptors` | Spec fields have UI descriptors |
-| `olm-status-descriptors` | Status fields have UI descriptors |
-| `basic-check-spec` | Sample CR has valid spec |
+| Test                       | Description                       |
+| -------------------------- | --------------------------------- |
+| `olm-bundle-validation`    | Bundle structure and metadata     |
+| `olm-crds-have-validation` | CRD has OpenAPI validation        |
+| `olm-crds-have-resources`  | CSV lists created resources       |
+| `olm-spec-descriptors`     | Spec fields have UI descriptors   |
+| `olm-status-descriptors`   | Status fields have UI descriptors |
+| `basic-check-spec`         | Sample CR has valid spec          |
 
 All tests must pass for Red Hat certification.
 
@@ -410,6 +421,7 @@ When releasing a new version, all images must be built, pushed with the version 
    - `operator/Makefile`
 
 2. Regenerate manifests and bundle:
+
    ```bash
    cd operator
    make manifests generate
@@ -417,11 +429,13 @@ When releasing a new version, all images must be built, pushed with the version 
    ```
 
 3. Build all images (from project root):
+
    ```bash
    make build-all VERSION=x.y.z
    ```
 
 4. Push all images with version tag AND update `latest`:
+
    ```bash
    # Option A: Use the release target (recommended - does everything)
    make release VERSION=x.y.z
@@ -432,6 +446,7 @@ When releasing a new version, all images must be built, pushed with the version 
    ```
 
 5. Validate with scorecard:
+
    ```bash
    cd operator
    operator-sdk scorecard bundle/
@@ -444,6 +459,7 @@ When releasing a new version, all images must be built, pushed with the version 
 The operator's default configuration uses `quay.io/truenas_solutions/truenas-csi:latest` for the CSI driver image. The `push-latest` target updates the `latest` tag for all images (driver, operator, and bundle).
 
 If the `latest` tag is not updated after a release:
+
 - New operator deployments will pull an outdated driver image
 - Integration tests will fail with `ImagePullBackOff` if `latest` doesn't exist
 - Users who don't specify a custom `driverImage` will get inconsistent behavior

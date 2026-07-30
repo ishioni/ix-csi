@@ -6,7 +6,7 @@ metadata:
   name: my-nvmeof-pvc
 spec:
   accessModes:
-    - ReadWriteOnce  # NVMe-oF provides single-node block access
+    - ReadWriteOnce # NVMe-oF provides single-node block access
   storageClassName: truenas-nvmeof
   resources:
     requests:

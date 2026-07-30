@@ -5,6 +5,7 @@ This guide will help you run the TrueNAS CSI driver demo on a local Kubernetes c
 ## Overview
 
 The `demo-simple.sh` script provides an interactive demonstration of the TrueNAS CSI driver's capabilities:
+
 - NFS volume provisioning
 - iSCSI volume provisioning
 - Volume expansion
@@ -64,23 +65,24 @@ metadata:
   name: truenas-csi-config
   namespace: truenas-csi
 data:
-  truenasURL: "wss://YOUR_TRUENAS_IP/api/current"    # Use wss:// for secure connection
-  truenasInsecure: "true"                            # Set to "true" for self-signed certs
-  defaultPool: "tank"                                # Change to your pool name
-  nfsServer: "YOUR_TRUENAS_IP"                       # Change to your TrueNAS IP
-  iscsiPortal: "YOUR_TRUENAS_IP:3260"                # Change to your TrueNAS IP
-  iscsiIQNBase: "iqn.2000-01.io.truenas"             # Optional: customize for your org
+  truenasURL: "wss://YOUR_TRUENAS_IP/api/current" # Use wss:// for secure connection
+  truenasInsecure: "true" # Set to "true" for self-signed certs
+  defaultPool: "tank" # Change to your pool name
+  nfsServer: "YOUR_TRUENAS_IP" # Change to your TrueNAS IP
+  iscsiPortal: "YOUR_TRUENAS_IP:3260" # Change to your TrueNAS IP
+  iscsiIQNBase: "iqn.2000-01.io.truenas" # Optional: customize for your org
 ```
 
 **Example:**
+
 ```yaml
 data:
-  truenasURL: "wss://10.0.0.136/api/current"          # Secure WebSocket (wss://)
-  truenasInsecure: "true"                             # Allow self-signed certificate
+  truenasURL: "wss://10.0.0.136/api/current" # Secure WebSocket (wss://)
+  truenasInsecure: "true" # Allow self-signed certificate
   defaultPool: "tank"
   nfsServer: "10.0.0.136"
   iscsiPortal: "10.0.0.136:3260"
-  iscsiIQNBase: "iqn.2024-01.com.acmecorp"  # Optional: use your company domain
+  iscsiIQNBase: "iqn.2024-01.com.acmecorp" # Optional: use your company domain
 ```
 
 **Note:** TrueNAS requires API keys to be used over secure connections (wss://) for security. Set `truenasInsecure: "true"` if using self-signed certificates.
@@ -94,6 +96,7 @@ data:
    - Copy the generated key
 
 2. **Update the Secret** in `deploy/truenas-csi-driver.yaml`:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -117,6 +120,7 @@ chmod +x ./demo-simple.sh
 ### First Run
 
 The script will:
+
 1. ✅ Verify prerequisites are installed
 2. ✅ Confirm you've configured the YAML file
 3. ✅ Create a Kind cluster with 2 worker nodes
@@ -130,6 +134,7 @@ The script will:
 ### Subsequent Runs
 
 If the cluster and driver already exist, the script will:
+
 - Skip cluster creation
 - Skip driver deployment
 - Go directly to the demo menu
@@ -139,24 +144,28 @@ If the cluster and driver already exist, the script will:
 The interactive menu provides these demos:
 
 ### Volume Provisioning
+
 1. **Demo NFS volume creation** - Create a ReadWriteMany NFS volume
 2. **Demo iSCSI volume creation** - Create a ReadWriteOnce iSCSI block volume
 3. **Demo multiple volumes** - Create 3 volumes simultaneously
 4. **Demo storage class variations** - Different compression settings
 
 ### Advanced Operations
+
 5. **Demo volume expansion** - Expand an existing volume online
 6. **Demo volume cloning** - Clone a volume (select existing or create new)
 7. **Demo volume snapshots** - Create and restore from snapshots
 8. **Demo clone with data verification** ⭐ - Write data, clone, verify data copied
 
 ### Inspection & Metadata
+
 9. **Demo volume metadata inspection** - View volume attributes
 10. **Demo capacity reporting** - Check volume sizes
 11. **Demo topology awareness** - View node topology
 12. **Demo driver capabilities** - List all CSI features
 
 ### Utilities
+
 13. **Show current status** - View all pods, PVCs, PVs
 14. **View driver logs** - Check controller and node logs
 15. **Cleanup demo resources** - Delete all demo volumes
@@ -166,6 +175,7 @@ The interactive menu provides these demos:
 ### Successful Volume Creation
 
 When you create a volume, you should see:
+
 - ✅ PVC bound within 10-30 seconds
 - ✅ New dataset appears in TrueNAS UI (Storage → Datasets)
 - ✅ New share appears in TrueNAS UI (Shares → NFS or iSCSI)
@@ -173,6 +183,7 @@ When you create a volume, you should see:
 ### Check TrueNAS UI
 
 After creating volumes, verify in TrueNAS:
+
 - **Storage → Datasets** - See the new datasets (pvc-xxxxx)
 - **Shares → NFS** - See NFS shares for NFS volumes
 - **Shares → iSCSI** - See targets/extents for iSCSI volumes
@@ -208,14 +219,15 @@ The driver uses secure WebSocket (wss://) by default. For self-signed certificat
 ```yaml
 data:
   truenasURL: "wss://10.0.0.136/api/current"
-  truenasInsecure: "true"  # Skip certificate validation for self-signed certs
+  truenasInsecure: "true" # Skip certificate validation for self-signed certs
 ```
 
 **For production with valid certificates**, set to `"false"` or remove the field:
+
 ```yaml
 data:
   truenasURL: "wss://truenas.example.com/api/current"
-  truenasInsecure: "false"  # Validate certificate
+  truenasInsecure: "false" # Validate certificate
 ```
 
 ## Troubleshooting
@@ -223,6 +235,7 @@ data:
 ### "Have you configured deploy/truenas-csi-driver.yaml?"
 
 The demo requires you to edit the YAML file first. If you see this message:
+
 1. Edit `deploy/truenas-csi-driver.yaml`
 2. Update ConfigMap with your TrueNAS IP and pool
 3. Update Secret with your credentials
@@ -231,11 +244,12 @@ The demo requires you to edit the YAML file first. If you see this message:
 ### "Failed to create driver: invalid iSCSI IQN base format"
 
 Your `iscsiIQNBase` in the ConfigMap has an invalid format. It must:
+
 - Start with `iqn.`
 - Include date in `YYYY-MM` format
 - Include reversed domain name
-- Example: `iqn.2024-01.com.example` 
-- Example: `iqn.invalid` 
+- Example: `iqn.2024-01.com.example`
+- Example: `iqn.invalid`
 
 ### "Pool 'tank' not found"
 
@@ -246,11 +260,13 @@ Your `iscsiIQNBase` in the ConfigMap has an invalid format. It must:
 ### "PVC stuck in Pending"
 
 Check driver logs from the menu (Option 14) or:
+
 ```bash
 kubectl logs -n truenas-csi -l app=truenas-csi-controller -c csi-controller
 ```
 
 Common causes:
+
 - TrueNAS not accessible from Kind cluster
 - Authentication failure
 - Pool doesn't exist
@@ -259,9 +275,11 @@ Common causes:
 ## Cleanup
 
 ### Clean Demo Resources Only
+
 From the menu, choose **Option 15** to delete all demo PVCs while keeping the driver and cluster.
 
 ### Clean Everything
+
 ```bash
 # Delete the entire Kind cluster
 kind delete cluster --name truenas-csi-demo
@@ -284,5 +302,5 @@ For production use on a real Kubernetes cluster:
    ```
 
 ## Getting Help
-- **Report issues**: https://github.com/truenas/truenas-csi/issues
 
+- **Report issues**: https://github.com/truenas/truenas-csi/issues

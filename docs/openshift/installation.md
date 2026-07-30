@@ -97,6 +97,7 @@ oc get pods -n truenas-csi
 ```
 
 You should see:
+
 - `truenas-csi-controller-*` - Controller deployment pod
 - `truenas-csi-node-*` - Node DaemonSet pods (one per node)
 
@@ -149,8 +150,8 @@ metadata:
   name: my-pvc
 spec:
   accessModes:
-    - ReadWriteOnce  # Use ReadWriteMany for NFS
-  storageClassName: truenas-iscsi  # or truenas-nfs
+    - ReadWriteOnce # Use ReadWriteMany for NFS
+  storageClassName: truenas-iscsi # or truenas-nfs
   resources:
     requests:
       storage: 10Gi
@@ -194,6 +195,7 @@ export TRUENAS_INSECURE=true
 ```
 
 The demo provides an interactive menu to:
+
 - Create NFS and iSCSI volumes
 - Test volume expansion
 - Create and restore snapshots
@@ -233,5 +235,6 @@ oc logs -n truenas-csi daemonset/truenas-csi-node -c csi-node
 ## Support
 
 For issues and feature requests, please visit:
+
 - GitHub: https://github.com/truenas/truenas-csi
 - TrueNAS Documentation: https://www.truenas.com/docs/

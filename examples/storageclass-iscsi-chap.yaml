@@ -13,7 +13,7 @@ parameters:
   # CHAP authentication credentials
   # Note: For production, consider using Kubernetes secrets
   iscsi.chapUser: "chapuser"
-  iscsi.chapSecret: "chappassword123"  # Must be 12-16 characters
+  iscsi.chapSecret: "chappassword123" # Must be 12-16 characters
   # Mutual CHAP (optional) - target authenticates to initiator
   # iscsi.chapPeerUser: "peeruser"
   # iscsi.chapPeerSecret: "peerpassword123"

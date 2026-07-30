@@ -6,7 +6,7 @@ metadata:
   name: my-iscsi-pvc
 spec:
   accessModes:
-    - ReadWriteOnce  # iSCSI supports single node access
+    - ReadWriteOnce # iSCSI supports single node access
   storageClassName: truenas-iscsi
   resources:
     requests:

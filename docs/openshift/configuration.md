@@ -55,19 +55,19 @@ spec:
 
 ### Spec Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `truenasURL` | string | Yes | - | WebSocket URL to TrueNAS API |
-| `credentialsSecret` | string | Yes | - | Name of Secret with API key |
-| `defaultPool` | string | Yes | - | Default ZFS pool name |
-| `nfsServer` | string | No | - | NFS server IP address |
-| `iscsiPortal` | string | No | - | iSCSI portal (IP:port) |
-| `iscsiIQNBase` | string | No | `iqn.2005-10.org.freenas.ctl` | Base IQN for targets |
-| `insecureSkipTLS` | bool | No | `false` | Skip TLS verification |
-| `driverImage` | string | No | Operator default | Custom driver image |
-| `controllerReplicas` | int32 | No | `1` | Controller pod replicas |
-| `nodeSelector` | map | No | - | Node selector labels |
-| `tolerations` | array | No | - | Pod tolerations |
+| Field                | Type   | Required | Default                       | Description                  |
+| -------------------- | ------ | -------- | ----------------------------- | ---------------------------- |
+| `truenasURL`         | string | Yes      | -                             | WebSocket URL to TrueNAS API |
+| `credentialsSecret`  | string | Yes      | -                             | Name of Secret with API key  |
+| `defaultPool`        | string | Yes      | -                             | Default ZFS pool name        |
+| `nfsServer`          | string | No       | -                             | NFS server IP address        |
+| `iscsiPortal`        | string | No       | -                             | iSCSI portal (IP:port)       |
+| `iscsiIQNBase`       | string | No       | `iqn.2005-10.org.freenas.ctl` | Base IQN for targets         |
+| `insecureSkipTLS`    | bool   | No       | `false`                       | Skip TLS verification        |
+| `driverImage`        | string | No       | Operator default              | Custom driver image          |
+| `controllerReplicas` | int32  | No       | `1`                           | Controller pod replicas      |
+| `nodeSelector`       | map    | No       | -                             | Node selector labels         |
+| `tolerations`        | array  | No       | -                             | Pod tolerations              |
 
 ### Status Fields
 
@@ -75,8 +75,8 @@ The operator updates the status subresource with deployment information:
 
 ```yaml
 status:
-  phase: Running          # Current phase: Pending, Running, Failed
-  controllerReady: true   # Controller deployment ready
+  phase: Running # Current phase: Pending, Running, Failed
+  controllerReady: true # Controller deployment ready
   nodeDaemonSetReady: true # Node DaemonSet ready
   conditions:
     - type: Ready
@@ -110,6 +110,7 @@ stringData:
 5. Copy the generated key (shown only once)
 
 **Required Permissions**: The API key needs permissions to:
+
 - Create/delete datasets
 - Create/delete NFS shares
 - Create/delete iSCSI targets, extents, and target-extent associations
@@ -171,7 +172,7 @@ parameters:
   pool: tank
 
   # Required: Filesystem type
-  fsType: ext4  # or xfs
+  fsType: ext4 # or xfs
 
   # Optional: Dataset path within pool
   datasetPath: "kubernetes/volumes"
@@ -192,18 +193,18 @@ volumeBindingMode: Immediate
 
 ### StorageClass Parameters Reference
 
-| Parameter | Protocols | Values | Description |
-|-----------|-----------|--------|-------------|
-| `protocol` | all | `nfs`, `iscsi` | Storage protocol |
-| `pool` | all | string | ZFS pool name |
-| `datasetPath` | all | string | Path within pool |
-| `compression` | all | `off`, `lz4`, `gzip`, `zstd` | ZFS compression |
-| `sync` | all | `standard`, `always`, `disabled` | Sync behavior |
-| `fsType` | iscsi | `ext4`, `xfs` | Filesystem type |
-| `recordsize` | nfs | `4K`-`1M` | NFS record size |
-| `volblocksize` | iscsi | `512`-`128K` | iSCSI block size |
-| `sparse` | iscsi | `true`, `false` | Thin provisioning |
-| `atime` | all | `on`, `off` | Access time updates |
+| Parameter      | Protocols | Values                           | Description         |
+| -------------- | --------- | -------------------------------- | ------------------- |
+| `protocol`     | all       | `nfs`, `iscsi`                   | Storage protocol    |
+| `pool`         | all       | string                           | ZFS pool name       |
+| `datasetPath`  | all       | string                           | Path within pool    |
+| `compression`  | all       | `off`, `lz4`, `gzip`, `zstd`     | ZFS compression     |
+| `sync`         | all       | `standard`, `always`, `disabled` | Sync behavior       |
+| `fsType`       | iscsi     | `ext4`, `xfs`                    | Filesystem type     |
+| `recordsize`   | nfs       | `4K`-`1M`                        | NFS record size     |
+| `volblocksize` | iscsi     | `512`-`128K`                     | iSCSI block size    |
+| `sparse`       | iscsi     | `true`, `false`                  | Thin provisioning   |
+| `atime`        | all       | `on`, `off`                      | Access time updates |
 
 ## VolumeSnapshotClass Configuration
 
@@ -225,11 +226,11 @@ parameters:
 
 Ensure the following connectivity between OpenShift nodes and TrueNAS:
 
-| Protocol | Port | Direction | Purpose |
-|----------|------|-----------|---------|
-| TCP | 443 | Nodes -> TrueNAS | WebSocket API |
-| TCP | 2049 | Nodes -> TrueNAS | NFS |
-| TCP | 3260 | Nodes -> TrueNAS | iSCSI |
+| Protocol | Port | Direction        | Purpose       |
+| -------- | ---- | ---------------- | ------------- |
+| TCP      | 443  | Nodes -> TrueNAS | WebSocket API |
+| TCP      | 2049 | Nodes -> TrueNAS | NFS           |
+| TCP      | 3260 | Nodes -> TrueNAS | iSCSI         |
 
 ### TLS Configuration
 

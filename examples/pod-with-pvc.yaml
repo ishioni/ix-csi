@@ -20,4 +20,4 @@ spec:
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: my-nfs-pvc  # Reference the PVC created above
+        claimName: my-nfs-pvc # Reference the PVC created above
