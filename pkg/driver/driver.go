@@ -218,9 +218,9 @@ type Driver struct {
 	defaultPool                        string
 	detachedSnapshotsDatasetParentName string
 	nfsServer                          string
-	iscsiPortal   string
-	iscsiPortalID int
-	iscsiIQNBase  string
+	iscsiPortal                        string
+	iscsiPortalID                      int
+	iscsiIQNBase                       string
 	// iscsiBasename is the appliance's iSCSI global basename, read from TrueNAS
 	// and cached. TrueNAS advertises every target as <basename>:<target-name>, so
 	// this is authoritative over iscsiIQNBase (which is only a fallback). Empty
@@ -458,12 +458,12 @@ func NewDriver(config *DriverConfig) (*Driver, error) {
 	log.V(LogLevelInfo).Info("Initializing driver", "mode", mode)
 
 	d := &Driver{
-		name:          config.DriverName,
-		version:       config.DriverVersion,
-		nodeID:        config.NodeID,
-		endpoint:      config.Endpoint,
-		log:           log,
-		client:        truenasClient,
+		name:                               config.DriverName,
+		version:                            config.DriverVersion,
+		nodeID:                             config.NodeID,
+		endpoint:                           config.Endpoint,
+		log:                                log,
+		client:                             truenasClient,
 		defaultPool:                        config.DefaultPool,
 		detachedSnapshotsDatasetParentName: config.DetachedSnapshotsDatasetParentName,
 		nfsServer:                          config.NFSServer,

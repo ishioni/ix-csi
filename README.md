@@ -145,31 +145,31 @@ sudo systemctl enable microk8s-mount-propagation
 
 ### Driver Configuration (ConfigMap)
 
-| Setting           | Description                                     | Example                        |
-| ----------------- | ----------------------------------------------- | ------------------------------ |
-| `truenasURL`      | WebSocket URL to TrueNAS API                    | `wss://10.0.0.100/api/current` |
-| `truenasInsecure` | Skip TLS verification                           | `true` (for self-signed certs) |
-| `defaultPool`     | Default ZFS pool for volumes                    | `tank`                         |
-| `nfsServer`       | NFS server address                              | `10.0.0.100`                   |
-| `iscsiPortal`     | iSCSI portal address                            | `10.0.0.100:3260`              |
-| `nvmeofPortal`    | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420`              |
-| `iscsiIQNBase`    | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
-| `detachedSnapshotsDatasetParentName` | Dataset root for independent snapshots and detached clones | `tank/csi-detached` |
+| Setting                              | Description                                                | Example                        |
+| ------------------------------------ | ---------------------------------------------------------- | ------------------------------ |
+| `truenasURL`                         | WebSocket URL to TrueNAS API                               | `wss://10.0.0.100/api/current` |
+| `truenasInsecure`                    | Skip TLS verification                                      | `true` (for self-signed certs) |
+| `defaultPool`                        | Default ZFS pool for volumes                               | `tank`                         |
+| `nfsServer`                          | NFS server address                                         | `10.0.0.100`                   |
+| `iscsiPortal`                        | iSCSI portal address                                       | `10.0.0.100:3260`              |
+| `nvmeofPortal`                       | NVMe-oF portal address (optional; auto-derived)            | `10.0.0.100:4420`              |
+| `iscsiIQNBase`                       | Base IQN for iSCSI targets                                 | `iqn.2024-01.com.example`      |
+| `detachedSnapshotsDatasetParentName` | Dataset root for independent snapshots and detached clones | `tank/csi-detached`            |
 
 ### StorageClass Parameters
 
 #### General Parameters
 
-| Parameter     | Description                                                                                                                                                                                                                          | Values                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `protocol`    | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
-| `pool`        | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
-| `datasetPath` | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
-| `compression` | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
-| `sync`        | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
-| `sparse`      | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
-| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot using replication                                                                                                                                                          | `true`, `false` |
-| `detachedVolumesFromVolumes`   | Create an independent volume from a volume using replication                                                                                                                                                            | `true`, `false` |
+| Parameter                      | Description                                                                                                                                                                                                                          | Values                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `protocol`                     | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
+| `pool`                         | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
+| `datasetPath`                  | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
+| `compression`                  | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
+| `sync`                         | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
+| `sparse`                       | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot using replication                                                                                                                                                                       | `true`, `false`                                             |
+| `detachedVolumesFromVolumes`   | Create an independent volume from a volume using replication                                                                                                                                                                         | `true`, `false`                                             |
 
 Delete-time behavior (optional): `forceDelete` (`true`/`false`) forces removal of
 busy resources; `deleteExtentsWithTarget` (`true`/`false`, default `true`) removes
@@ -246,11 +246,11 @@ volumes using replication. These options require the configured
 `detachedSnapshotsDatasetParentName` dataset root, which must remain separate
 from normal CSI volume datasets.
 
-| Parameter                      | Description                                       | Values         |
-| ------------------------------ | ------------------------------------------------- | -------------- |
+| Parameter                      | Description                                      | Values          |
+| ------------------------------ | ------------------------------------------------ | --------------- |
 | `detachedSnapshots`            | Store snapshots as independent received datasets | `true`, `false` |
-| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot      | `true`, `false` |
-| `detachedVolumesFromVolumes`   | Create an independent volume from a volume        | `true`, `false` |
+| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot     | `true`, `false` |
+| `detachedVolumesFromVolumes`   | Create an independent volume from a volume       | `true`, `false` |
 
 #### Encryption Parameters
 
