@@ -248,13 +248,13 @@ NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is 
 
 Sensitive parameters can be supplied from a Kubernetes Secret instead of inline StorageClass values, keeping them out of the StorageClass and the persisted PersistentVolume. A value from a Secret takes precedence over the matching inline parameter, so existing StorageClasses keep working unchanged.
 
-| Purpose | StorageClass reference | Secret data keys |
-|---------|------------------------|------------------|
-| ZFS encryption key/passphrase | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `encryption.key`, `encryption.passphrase` |
-| iSCSI CHAP auth group (controller) | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `iscsi.chapSecret`, `iscsi.chapPeerSecret` |
-| iSCSI CHAP login (node) | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace` | `iscsi.chapUsername`, `iscsi.chapPassword`, `iscsi.chapUsernameIn`, `iscsi.chapPasswordIn` |
-| NVMe-oF DH-CHAP host registration (controller) | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey` |
-| NVMe-oF DH-CHAP connection (node) | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace` | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey` |
+| Purpose                                        | StorageClass reference                                      | Secret data keys                                                                           |
+| ---------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ZFS encryption key/passphrase                  | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `encryption.key`, `encryption.passphrase`                                                  |
+| iSCSI CHAP auth group (controller)             | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `iscsi.chapSecret`, `iscsi.chapPeerSecret`                                                 |
+| iSCSI CHAP login (node)                        | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace`  | `iscsi.chapUsername`, `iscsi.chapPassword`, `iscsi.chapUsernameIn`, `iscsi.chapPasswordIn` |
+| NVMe-oF DH-CHAP host registration (controller) | `csi.storage.k8s.io/provisioner-secret-name` / `-namespace` | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey`                                                 |
+| NVMe-oF DH-CHAP connection (node)              | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace`  | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey`                                                 |
 
 iSCSI CHAP and NVMe-oF DH-CHAP each use both a provisioner-secret (to configure TrueNAS: the CHAP auth group / the nvmet host) and a node-stage-secret (for the node's login/connection); the same Secret can serve both roles. The controller ServiceAccount is granted `get`/`list`/`watch` on `secrets` so the external-provisioner can resolve the provisioner-secret; node-stage secrets are resolved by kubelet. See `examples/storageclass-iscsi-chap-secret.yaml`, `examples/storageclass-nvmeof-dhchap-secret.yaml`, and `examples/storageclass-encrypted-secret.yaml`.
 
