@@ -154,6 +154,7 @@ sudo systemctl enable microk8s-mount-propagation
 | `iscsiPortal`     | iSCSI portal address                            | `10.0.0.100:3260`              |
 | `nvmeofPortal`    | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420`              |
 | `iscsiIQNBase`    | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
+| `detachedSnapshotsDatasetParentName` | Dataset root for independent snapshots and detached clones | `tank/csi-detached` |
 
 ### StorageClass Parameters
 
@@ -167,6 +168,8 @@ sudo systemctl enable microk8s-mount-propagation
 | `compression` | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
 | `sync`        | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
 | `sparse`      | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot using replication                                                                                                                                                          | `true`, `false` |
+| `detachedVolumesFromVolumes`   | Create an independent volume from a volume using replication                                                                                                                                                            | `true`, `false` |
 
 Delete-time behavior (optional): `forceDelete` (`true`/`false`) forces removal of
 busy resources; `deleteExtentsWithTarget` (`true`/`false`, default `true`) removes
@@ -233,6 +236,21 @@ NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is 
 | `snapshot.retentionUnit` | Retention unit           | `HOUR`, `DAY`, `WEEK`, `MONTH`, `YEAR` |
 | `snapshot.naming`        | Naming schema            | `auto-%Y-%m-%d_%H-%M`                  |
 | `snapshot.recursive`     | Include child datasets   | `true`, `false`                        |
+
+#### Detached Snapshots and Volume Clones
+
+Set `detachedSnapshots: "true"` on a VolumeSnapshotClass to store snapshots as
+independent received datasets. Set `detachedVolumesFromSnapshots: "true"` or
+`detachedVolumesFromVolumes: "true"` on a StorageClass to create independent
+volumes using replication. These options require the configured
+`detachedSnapshotsDatasetParentName` dataset root, which must remain separate
+from normal CSI volume datasets.
+
+| Parameter                      | Description                                       | Values         |
+| ------------------------------ | ------------------------------------------------- | -------------- |
+| `detachedSnapshots`            | Store snapshots as independent received datasets | `true`, `false` |
+| `detachedVolumesFromSnapshots` | Create an independent volume from a snapshot      | `true`, `false` |
+| `detachedVolumesFromVolumes`   | Create an independent volume from a volume        | `true`, `false` |
 
 #### Encryption Parameters
 

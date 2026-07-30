@@ -70,13 +70,15 @@ const (
 
 // StorageClass parameter keys
 const (
-	paramProtocol     = "protocol"
-	paramPool         = "pool"
-	paramDatasetPath  = "datasetPath"
-	paramCompression  = "compression"
-	paramSync         = "sync"
-	paramVolBlockSize = "volblocksize"
-	paramSparse       = "sparse"
+	paramProtocol                     = "protocol"
+	paramPool                         = "pool"
+	paramDatasetPath                  = "datasetPath"
+	paramCompression                  = "compression"
+	paramSync                         = "sync"
+	paramVolBlockSize                 = "volblocksize"
+	paramSparse                       = "sparse"
+	paramDetachedVolumesFromSnapshots = "detachedVolumesFromSnapshots"
+	paramDetachedVolumesFromVolumes   = "detachedVolumesFromVolumes"
 
 	// iSCSI parameters
 	paramISCSIBlockSize      = "iscsi.blocksize"
@@ -120,6 +122,7 @@ const (
 	paramSnapshotRetention     = "snapshot.retention"
 	paramSnapshotRetentionUnit = "snapshot.retentionUnit"
 	paramSnapshotRecursive     = "snapshot.recursive"
+	paramDetachedSnapshots     = "detachedSnapshots"
 )
 
 const (
@@ -251,6 +254,19 @@ func (s *ControllerServer) validateStorageClassParameters(ctx context.Context, p
 		lower := strings.ToLower(val)
 		if lower != "true" && lower != "false" {
 			return fmt.Errorf("invalid sparse value: %s (valid: true, false)", val)
+		}
+	}
+
+	// Detached transfers require a separate dataset root so that the received
+	// dataset does not share ancestry with regular CSI volumes.
+	for _, key := range []string{paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes} {
+		if _, err := detachedBoolParameter(parameters, key); err != nil {
+			return err
+		}
+	}
+	if detachedParameterEnabled(parameters, paramDetachedVolumesFromSnapshots) || detachedParameterEnabled(parameters, paramDetachedVolumesFromVolumes) {
+		if s.driver.DetachedSnapshotsDatasetParentName() == "" {
+			return fmt.Errorf("%s or %s requires TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT", paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes)
 		}
 	}
 
@@ -1333,16 +1349,30 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			return nil, status.Error(codes.InvalidArgument, "snapshot ID is required")
 		}
 
-		s.driver.Log().V(LogLevelDebug).Info("Cloning snapshot", "snapshotId", snapshot.SnapshotId, "datasetPath", datasetPath)
-		_, err := s.driver.Client().CloneSnapshot(ctx, snapshot.SnapshotId, datasetPath)
+		detached, err := detachedBoolParameter(parameters, paramDetachedVolumesFromSnapshots)
 		if err != nil {
-			if client.IsNotFoundError(err) {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid storage class parameters: %v", err)
+		}
+		s.driver.Log().V(LogLevelDebug).Info("Cloning snapshot", "snapshotId", snapshot.SnapshotId, "datasetPath", datasetPath, "detached", detached)
+		if detached {
+			err = s.cloneDetachedSnapshot(ctx, snapshot.SnapshotId, datasetPath)
+		} else {
+			_, err = s.driver.Client().CloneSnapshot(ctx, snapshot.SnapshotId, datasetPath)
+		}
+		if err != nil {
+			if client.IsNotFoundError(err) || strings.Contains(strings.ToLower(err.Error()), "not found") {
 				return nil, status.Errorf(codes.NotFound, "source snapshot %s not found", snapshot.SnapshotId)
+			}
+			if detached && strings.Contains(strings.ToLower(err.Error()), "source snapshot") {
+				return nil, status.Errorf(codes.NotFound, "%v", err)
 			}
 			return nil, status.Errorf(codes.Internal, "failed to clone snapshot: %v", err)
 		}
 
-		requiredBytes := req.CapacityRange.RequiredBytes
+		requiredBytes := int64(0)
+		if req.CapacityRange != nil {
+			requiredBytes = req.CapacityRange.RequiredBytes
+		}
 		if requiredBytes > 0 && requiredBytes < minVolumeSize {
 			requiredBytes = minVolumeSize
 		}
@@ -1413,22 +1443,35 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			return nil, status.Errorf(codes.NotFound, "source volume not found: %v", err)
 		}
 
-		sanitizedVolumeID := strings.ReplaceAll(volumeID, "/", "-")
-		snapshotName := fmt.Sprintf("csi-clone-%s-%d", sanitizedVolumeID, time.Now().Unix())
-		snapshot, err := s.driver.Client().CreateSnapshot(ctx, sourceInfo.DatasetPath, snapshotName, false)
+		detached, err := detachedBoolParameter(parameters, paramDetachedVolumesFromVolumes)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create snapshot for clone: %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "invalid storage class parameters: %v", err)
 		}
+		if detached {
+			if err := s.cloneDetachedVolume(ctx, sourceInfo.DatasetPath, datasetPath, volumeID); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to clone volume independently: %v", err)
+			}
+		} else {
+			sanitizedVolumeID := strings.ReplaceAll(volumeID, "/", "-")
+			snapshotName := fmt.Sprintf("csi-clone-%s-%d", sanitizedVolumeID, time.Now().Unix())
+			snapshot, err := s.driver.Client().CreateSnapshot(ctx, sourceInfo.DatasetPath, snapshotName, false)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to create snapshot for clone: %v", err)
+			}
 
-		_, err = s.driver.Client().CloneSnapshot(ctx, snapshot.ID, datasetPath)
-		if err != nil {
+			_, err = s.driver.Client().CloneSnapshot(ctx, snapshot.ID, datasetPath)
+			if err != nil {
+				s.driver.Client().DeleteSnapshot(ctx, snapshot.ID)
+				return nil, status.Errorf(codes.Internal, "failed to clone volume: %v", err)
+			}
+
 			s.driver.Client().DeleteSnapshot(ctx, snapshot.ID)
-			return nil, status.Errorf(codes.Internal, "failed to clone volume: %v", err)
 		}
 
-		s.driver.Client().DeleteSnapshot(ctx, snapshot.ID)
-
-		requiredBytes := req.CapacityRange.RequiredBytes
+		requiredBytes := int64(0)
+		if req.CapacityRange != nil {
+			requiredBytes = req.CapacityRange.RequiredBytes
+		}
 		if requiredBytes > 0 && requiredBytes < minVolumeSize {
 			requiredBytes = minVolumeSize
 		}
@@ -2052,6 +2095,42 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	}
 
 	snapshotName := SanitizeVolumeName(req.Name)
+	detached, err := detachedBoolParameter(req.Parameters, paramDetachedSnapshots)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid snapshot parameters: %v", err)
+	}
+	if detached {
+		// CSI snapshot names are globally unique. Keep the existing regular-ZFS
+		// snapshot check in force even when this request asks for a detached one.
+		existingSnapshot, findErr := s.driver.Client().FindSnapshotByName(ctx, snapshotName)
+		if findErr != nil {
+			return nil, status.Errorf(codes.Internal, "failed to check snapshot name: %v", findErr)
+		}
+		if existingSnapshot != nil {
+			return nil, status.Errorf(codes.AlreadyExists, "snapshot name %s already exists on a different source volume (existing: %s)", req.Name, existingSnapshot.Dataset)
+		}
+
+		detachedID, createErr := s.createDetachedSnapshot(ctx, req.SourceVolumeId, snapshotName, volInfo.DatasetPath)
+		if createErr != nil {
+			if strings.Contains(strings.ToLower(createErr.Error()), "already exists") {
+				return nil, status.Errorf(codes.AlreadyExists, "%v", createErr)
+			}
+			if strings.Contains(strings.ToLower(createErr.Error()), "requires") || strings.Contains(strings.ToLower(createErr.Error()), "overlaps") || strings.Contains(strings.ToLower(createErr.Error()), "invalid detached") {
+				return nil, status.Errorf(codes.FailedPrecondition, "%v", createErr)
+			}
+			return nil, status.Errorf(codes.Internal, "failed to create detached snapshot: %v", createErr)
+		}
+		return &csi.CreateSnapshotResponse{
+			Snapshot: &csi.Snapshot{
+				SnapshotId:     detachedID,
+				SourceVolumeId: req.SourceVolumeId,
+				CreationTime:   timestamppb.Now(),
+				ReadyToUse:     true,
+				SizeBytes:      volInfo.CapacityBytes,
+			},
+		}, nil
+	}
+
 	expectedSnapshotID := fmt.Sprintf("%s@%s", volInfo.DatasetPath, snapshotName)
 
 	// Check if a snapshot with this name already exists on ANY volume
@@ -2118,10 +2197,30 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		return nil, status.Error(codes.InvalidArgument, "snapshot ID is required")
 	}
 
-	// Validate snapshot ID format (should contain @)
+	// Detached snapshots are independent datasets beneath the configured
+	// detached-snapshot root, rather than ZFS snapshot names containing '@'.
 	if !strings.Contains(req.SnapshotId, "@") {
-		// Invalid format - treat as already deleted (idempotent)
-		s.driver.Log().V(LogLevelDebug).Info("Invalid snapshot ID format, treating as already deleted", "snapshotId", req.SnapshotId)
+		parent := s.driver.DetachedSnapshotsDatasetParentName()
+		var err error
+		if parent == "" {
+			return nil, status.Error(codes.FailedPrecondition, "detached snapshot deletion requires TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT")
+		}
+		targetDataset, parseErr := detachedSnapshotDataset(parent, req.SnapshotId)
+		if parseErr != nil {
+			// Preserve CSI idempotency for malformed IDs from an already deleted object.
+			s.driver.Log().V(LogLevelDebug).Info("Invalid detached snapshot ID, treating as already deleted", "snapshotId", req.SnapshotId, "error", parseErr)
+			return &csi.DeleteSnapshotResponse{}, nil
+		}
+		if _, err = s.driver.Client().GetDataset(ctx, targetDataset); err != nil {
+			if client.IsNotFoundError(err) {
+				return &csi.DeleteSnapshotResponse{}, nil
+			}
+			return nil, status.Errorf(codes.Internal, "failed to find detached snapshot: %v", err)
+		}
+		err = s.driver.Client().DeleteDataset(ctx, targetDataset, &client.DatasetDeleteOptions{Recursive: true, Force: true})
+		if err != nil && !client.IsNotFoundError(err) {
+			return nil, status.Errorf(codes.Internal, "failed to delete detached snapshot: %v", err)
+		}
 		return &csi.DeleteSnapshotResponse{}, nil
 	}
 
@@ -2160,6 +2259,36 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 
 	// If snapshot ID is specified, look up that specific snapshot
 	if req.SnapshotId != "" {
+		if !strings.Contains(req.SnapshotId, "@") {
+			parent := s.driver.DetachedSnapshotsDatasetParentName()
+			if parent == "" {
+				return &csi.ListSnapshotsResponse{Entries: entries}, nil
+			}
+			sourceVolumeID, _, parseErr := detachedSnapshotParts(req.SnapshotId)
+			if parseErr != nil {
+				return &csi.ListSnapshotsResponse{Entries: entries}, nil
+			}
+			datasetPath, pathErr := detachedSnapshotDataset(parent, req.SnapshotId)
+			if pathErr != nil {
+				return &csi.ListSnapshotsResponse{Entries: entries}, nil
+			}
+			dataset, getErr := s.driver.Client().GetDataset(ctx, datasetPath)
+			if getErr != nil {
+				if client.IsNotFoundError(getErr) {
+					return &csi.ListSnapshotsResponse{Entries: entries}, nil
+				}
+				return nil, status.Errorf(codes.Internal, "failed to get detached snapshot: %v", getErr)
+			}
+			entries = append(entries, &csi.ListSnapshotsResponse_Entry{Snapshot: &csi.Snapshot{
+				SnapshotId:     req.SnapshotId,
+				SourceVolumeId: sourceVolumeID,
+				CreationTime:   timestamppb.Now(),
+				ReadyToUse:     true,
+				SizeBytes:      datasetCapacity(dataset),
+			}})
+			return &csi.ListSnapshotsResponse{Entries: entries}, nil
+		}
+
 		// Snapshot ID format: dataset@snapshotname (e.g., tank/pvc-123@snap-456)
 		parts := strings.SplitN(req.SnapshotId, "@", 2)
 		if len(parts) == 2 {
@@ -2224,6 +2353,15 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			s.driver.Log().V(LogLevelDebug).Info("Failed to list snapshots for volume", "volumeId", req.SourceVolumeId, "error", err)
 			return &csi.ListSnapshotsResponse{Entries: entries}, nil
 		}
+		if s.driver.DetachedSnapshotsDatasetParentName() != "" {
+			detachedSnapshots, detachedErr := s.listDetachedSnapshots(ctx, req.SourceVolumeId)
+			if detachedErr != nil {
+				return nil, status.Errorf(codes.Internal, "failed to list detached snapshots: %v", detachedErr)
+			}
+			for _, detachedSnapshot := range detachedSnapshots {
+				snapshots = append(snapshots, client.Snapshot{ID: detachedSnapshot.ID, Dataset: detachedSnapshot.SourceVolumeID, Name: detachedSnapshot.Name, Referenced: datasetCapacity(&detachedSnapshot.Dataset)})
+			}
+		}
 
 		// Apply pagination
 		totalSnapshots := len(snapshots)
@@ -2259,6 +2397,15 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	if err != nil {
 		s.driver.Log().V(LogLevelDebug).Info("Failed to list all snapshots", "error", err)
 		return &csi.ListSnapshotsResponse{Entries: entries}, nil
+	}
+	if s.driver.DetachedSnapshotsDatasetParentName() != "" {
+		detachedSnapshots, detachedErr := s.listDetachedSnapshots(ctx, "")
+		if detachedErr != nil {
+			return nil, status.Errorf(codes.Internal, "failed to list detached snapshots: %v", detachedErr)
+		}
+		for _, detachedSnapshot := range detachedSnapshots {
+			allSnapshots = append(allSnapshots, client.Snapshot{ID: detachedSnapshot.ID, Dataset: detachedSnapshot.SourceVolumeID, Name: detachedSnapshot.Name, Referenced: datasetCapacity(&detachedSnapshot.Dataset)})
+		}
 	}
 
 	// Apply pagination

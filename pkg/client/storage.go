@@ -78,6 +78,7 @@ type Dataset struct {
 	Pool            string         `json:"pool"`
 	Type            string         `json:"type"`
 	Mountpoint      string         `json:"mountpoint"`
+	Comments        string         `json:"comments"`
 	Used            int64          `json:"used"`
 	Available       int64          `json:"available"`
 	RefQuota        int64          `json:"refquota"`
@@ -586,6 +587,7 @@ func parseDatasetResponse(result map[string]any) *Dataset {
 		Pool:           getString(result, "pool"),
 		Type:           getString(result, "type"),
 		Mountpoint:     getString(result, "mountpoint"),
+		Comments:       getString(result, "comments"),
 		Used:           getParsedInt64(result, "used"),
 		Available:      getParsedInt64(result, "available"),
 		RefQuota:       refQuota,
@@ -628,7 +630,7 @@ func (c *Client) ListDatasets(ctx context.Context, pool string) ([]Dataset, erro
 		"extra": map[string]any{
 			"flat":              true,
 			"retrieve_children": false,
-			"properties":        []string{"type", "used", "available", "refquota", "volsize", "refreservation"},
+			"properties":        []string{"type", "used", "available", "refquota", "volsize", "refreservation", "comments"},
 		},
 	}
 

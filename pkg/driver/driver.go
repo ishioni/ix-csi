@@ -215,8 +215,9 @@ type Driver struct {
 	log    logr.Logger
 	client *client.Client
 
-	defaultPool   string
-	nfsServer     string
+	defaultPool                        string
+	detachedSnapshotsDatasetParentName string
+	nfsServer                          string
 	iscsiPortal   string
 	iscsiPortalID int
 	iscsiIQNBase  string
@@ -276,11 +277,12 @@ type DriverConfig struct {
 	TrueNASAPIKey   string
 	TrueNASInsecure bool
 
-	DefaultPool  string
-	NFSServer    string
-	ISCSIPortal  string
-	ISCSIIQNBase string
-	NVMeOFPortal string
+	DefaultPool                        string
+	DetachedSnapshotsDatasetParentName string
+	NFSServer                          string
+	ISCSIPortal                        string
+	ISCSIIQNBase                       string
+	NVMeOFPortal                       string
 
 	// Logger is the structured logger for the driver and client.
 	// If not set, logging for the client will be disabled.
@@ -462,15 +464,16 @@ func NewDriver(config *DriverConfig) (*Driver, error) {
 		endpoint:      config.Endpoint,
 		log:           log,
 		client:        truenasClient,
-		defaultPool:   config.DefaultPool,
-		nfsServer:     config.NFSServer,
-		iscsiPortal:   config.ISCSIPortal,
-		iscsiPortalID: iscsiPortalID,
-		iscsiIQNBase:  config.ISCSIIQNBase,
-		iscsiBasename: iscsiBasename,
-		nvmeofPortal:  config.NVMeOFPortal,
-		nvmeofPortID:  nvmeofPortID,
-		nvmeBaseNQN:   nvmeBaseNQN,
+		defaultPool:                        config.DefaultPool,
+		detachedSnapshotsDatasetParentName: config.DetachedSnapshotsDatasetParentName,
+		nfsServer:                          config.NFSServer,
+		iscsiPortal:                        config.ISCSIPortal,
+		iscsiPortalID:                      iscsiPortalID,
+		iscsiIQNBase:                       config.ISCSIIQNBase,
+		iscsiBasename:                      iscsiBasename,
+		nvmeofPortal:                       config.NVMeOFPortal,
+		nvmeofPortID:                       nvmeofPortID,
+		nvmeBaseNQN:                        nvmeBaseNQN,
 	}
 
 	d.initializeCapabilities()
@@ -948,6 +951,12 @@ func resolveOrCreateNVMePort(ctx context.Context, c *client.Client, addr string,
 // DefaultPool returns the default storage pool
 func (d *Driver) DefaultPool() string {
 	return d.defaultPool
+}
+
+// DetachedSnapshotsDatasetParentName returns the dataset root used for
+// detached snapshots and detached volume clones.
+func (d *Driver) DetachedSnapshotsDatasetParentName() string {
+	return d.detachedSnapshotsDatasetParentName
 }
 
 // resolveISCSIBasename returns the appliance's iSCSI global basename, querying
