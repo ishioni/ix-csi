@@ -6,6 +6,13 @@ metadata:
   labels:
     {{- include "truenas-csi.labels" . | nindent 4 }}
 rules:
+  # Required by external-provisioner to resolve the provisioner Secret
+  # referenced by CSI StorageClass parameters. Sensitive iSCSI CHAP, NVMe-oF
+  # DH-CHAP, and ZFS encryption values can therefore stay out of the
+  # StorageClass and PersistentVolume objects.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
