@@ -51,8 +51,8 @@ helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
 ## SCC requirements
 
 The node plugin needs privileged access for mount operations, block devices,
-host networking, and host paths. Apply `deploy/openshift/scc.yaml` and keep
-the Helm service-account names aligned with the SCC subjects.
+host networking, and host paths. Set `openshift.enabled: true` so Helm creates
+the SCCs and binds them to the chart's service accounts.
 
 ## StorageClass parameters
 

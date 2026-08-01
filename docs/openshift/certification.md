@@ -52,13 +52,13 @@ accesses block devices, and interacts with host iSCSI/NVMe state.
 
 ## Deploy for CSI testing
 
-Apply the SCCs and install the UBI image with Helm:
+Enable the chart-managed SCCs and install the UBI image with Helm:
 
 ```bash
 oc new-project truenas-csi
-oc apply -f deploy/openshift/scc.yaml
 helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --namespace truenas-csi \
+  --set openshift.enabled=true \
   --set-string image.repository=quay.io/truenas_solutions/truenas-csi \
   --set image.tag=v1.2.0 \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
@@ -80,12 +80,11 @@ VolumeSnapshotClass, then run the applicable Red Hat CSI tests.
 
 ## CSI capability manifest
 
-`deploy/openshift/csi-capabilities.yaml` documents the capabilities used for
-certification testing. Update its driver version when preparing a new
-certification submission.
+When `openshift.enabled=true`, the chart creates a capabilities ConfigMap for
+certification testing and includes NFS, iSCSI, and NVMe-oF support.
 
-The CSI driver name is `csi.truenas.io`. The SCC subjects must match the
-service accounts created by the Helm chart:
+The CSI driver name is `csi.truenas.io`. The chart-managed SCC subjects use
+the service accounts created by the Helm chart:
 
 - `truenas-csi-controller`
 - `truenas-csi-node`

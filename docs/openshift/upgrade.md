@@ -27,8 +27,8 @@ helm upgrade truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
 
 From a checkout, replace the OCI reference with
 `./deploy/helm/truenas-csi` and set `--set image.tag` to the desired driver
-version. Keep the SCC manifest applied; it is independent of the Helm
-release.
+version. Keep `openshift.enabled=true` in the release values so the
+chart-managed SCCs remain present.
 
 Monitor the rollout:
 
@@ -55,5 +55,5 @@ oc logs -n truenas-csi daemonset/truenas-csi-node -c csi-node
 oc get csidriver csi.truenas.io
 ```
 
-If a node pod cannot start, inspect SCC admission and verify that the service
-account used by the Helm release is listed in `deploy/openshift/scc.yaml`.
+If a node pod cannot start, inspect SCC admission and verify that the release
+was installed with `openshift.enabled=true`.

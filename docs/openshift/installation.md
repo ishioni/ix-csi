@@ -2,8 +2,8 @@
 
 The TrueNAS CSI Driver runs on Red Hat OpenShift using the same Helm chart as
 other Kubernetes distributions. The separate OpenShift operator is not
-required. OpenShift does require SCC permissions for the privileged node
-plugin, so apply the bundled SCC manifest before installing the chart.
+required. Set `openshift.enabled=true` so the chart creates the SCCs required
+by the privileged node plugin and the certification capabilities ConfigMap.
 
 ## Prerequisites
 
@@ -15,11 +15,10 @@ plugin, so apply the bundled SCC manifest before installing the chart.
 
 ## Install
 
-Create the driver namespace and grant its service accounts the required SCCs:
+Create the driver namespace:
 
 ```bash
 oc new-project truenas-csi
-oc apply -f deploy/openshift/scc.yaml
 ```
 
 Install the Helm chart. Use the UBI image for Red Hat certification or the
@@ -28,6 +27,7 @@ standard image for ordinary OpenShift deployments.
 ```bash
 helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --namespace truenas-csi \
+  --set openshift.enabled=true \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
   --set config.truenasInsecure=true \
   --set-string config.defaultPool="tank" \
@@ -47,9 +47,8 @@ oc get pods -n truenas-csi
 oc get csidriver csi.truenas.io
 ```
 
-The controller Deployment and node DaemonSet should become ready. The node
-pods must run with the SCCs from `deploy/openshift/scc.yaml`; without them,
-OpenShift will reject the privileged node container or its host mounts.
+The controller Deployment and node DaemonSet should become ready. The
+chart-managed SCCs allow the privileged node container and its host mounts.
 
 ## Create StorageClasses
 
@@ -73,11 +72,10 @@ values.
 
 ## Uninstall
 
-Remove the Helm release and, if this SCC is no longer needed, its SCCs:
+Remove the Helm release and its chart-managed OpenShift resources:
 
 ```bash
 helm uninstall truenas-csi --namespace truenas-csi
-oc delete -f deploy/openshift/scc.yaml --ignore-not-found
 oc delete project truenas-csi
 ```
 
@@ -94,5 +92,6 @@ oc logs -n truenas-csi daemonset/truenas-csi-node -c csi-node
 oc describe pod -n truenas-csi -l app.kubernetes.io/component=node
 ```
 
-If the node pods are rejected, verify that the service accounts named in
-`deploy/openshift/scc.yaml` match the names configured in the Helm release.
+If the node pods are rejected, verify that the release was installed with
+`openshift.enabled=true` and that service-account names were not changed
+without also updating the chart-managed SCC configuration.

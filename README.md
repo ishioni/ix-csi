@@ -364,15 +364,15 @@ For an interactive demonstration of all driver features using a local Kind clust
 
 ## OpenShift
 
-The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. The UBI-based image is available for Red Hat certification. OpenShift still requires the driver node service account to be granted a privileged SCC; see the [OpenShift installation guide](docs/openshift/installation.md).
+The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. The UBI-based image is available for Red Hat certification. Set `openshift.enabled=true` to have the chart create the required SCCs and certification capabilities ConfigMap.
 
 ### Quick Start (OpenShift)
 
 ```bash
-kubectl apply -f deploy/openshift/scc.yaml
 helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --namespace truenas-csi \
   --create-namespace \
+  --set openshift.enabled=true \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
   --set config.truenasInsecure=true \
   --set-string config.defaultPool="tank" \

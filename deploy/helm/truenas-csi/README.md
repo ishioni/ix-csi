@@ -69,6 +69,7 @@ Kubernetes: `>=1.26.0-0`
 | node.resources.requests.cpu | string | `"100m"` |  |
 | node.resources.requests.memory | string | `"128Mi"` |  |
 | node.tolerations[0].operator | string | `"Exists"` |  |
+| openshift.enabled | bool | `false` |  |
 | rbac.create | bool | `true` |  |
 | secret.apiKey | string | `""` |  |
 | secret.existingSecret.key | string | `"TRUENAS_API_KEY"` |  |

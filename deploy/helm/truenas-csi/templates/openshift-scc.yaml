@@ -1,17 +1,12 @@
-# SecurityContextConstraints for TrueNAS CSI Driver on OpenShift
-# These SCCs are required for the CSI driver to perform privileged operations
-# such as mounting filesystems and accessing block devices.
-
+{{- if .Values.openshift.enabled }}
 ---
-# SCC for CSI Node DaemonSet - requires privileged access for mount operations
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: truenas-csi-node-scc
+  name: {{ include "truenas-csi.fullname" . }}-node
   labels:
-    app.kubernetes.io/name: truenas-csi
+    {{- include "truenas-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
-    app.kubernetes.io/managed-by: truenas-csi
 allowPrivilegedContainer: true
 allowHostIPC: true
 allowHostNetwork: true
@@ -37,18 +32,15 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:truenas-csi:truenas-csi-node
-
+  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "truenas-csi.nodeServiceAccountName" . }}
 ---
-# SCC for CSI Controller Deployment - allows CSI sidecars to run as root
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: truenas-csi-controller-scc
+  name: {{ include "truenas-csi.fullname" . }}-controller
   labels:
-    app.kubernetes.io/name: truenas-csi
+    {{- include "truenas-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
-    app.kubernetes.io/managed-by: truenas-csi
 allowPrivilegedContainer: false
 allowHostNetwork: false
 allowHostPID: false
@@ -69,4 +61,5 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:truenas-csi:truenas-csi-controller
+  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "truenas-csi.controllerServiceAccountName" . }}
+{{- end }}
