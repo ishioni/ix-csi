@@ -32,6 +32,10 @@ driver rejects overlapping source or target paths to avoid accidentally
 reintroducing a dependency or allowing a normal volume to be provisioned in
 the detached namespace.
 
+Detached snapshot datasets are identified with the ZFS user property
+`truenas-csi:detached_snapshot=true`. The driver does not use the TrueNAS
+dataset comments field for this metadata.
+
 The Helm chart exposes the same setting as
 `config.detachedSnapshotParentDataset`. The setting is optional until one
 of the detached features is enabled.

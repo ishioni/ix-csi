@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	detachedSnapshotSourcePrefix = "csi-detached-snapshot-"
-	detachedVolumeSourcePrefix   = "csi-detached-volume-"
-	detachedSnapshotComment      = "truenas-csi:detached-snapshot"
+	detachedSnapshotSourcePrefix  = "csi-detached-snapshot-"
+	detachedVolumeSourcePrefix    = "csi-detached-volume-"
+	detachedSnapshotProperty      = "truenas-csi:detached_snapshot"
+	detachedSnapshotPropertyValue = "true"
 )
 
 type detachedSnapshotInfo struct {
@@ -372,7 +373,10 @@ func (s *ControllerServer) cloneDetachedVolume(ctx context.Context, sourceDatase
 
 func (s *ControllerServer) markDetachedSnapshot(ctx context.Context, datasetPath string) error {
 	return s.driver.Client().UpdateDataset(ctx, datasetPath, &client.DatasetUpdateOptions{
-		Comments: detachedSnapshotComment,
+		UserProperties: []map[string]string{{
+			"key":   detachedSnapshotProperty,
+			"value": detachedSnapshotPropertyValue,
+		}},
 	})
 }
 
@@ -399,7 +403,7 @@ func (s *ControllerServer) listDetachedSnapshots(ctx context.Context, sourceVolu
 
 	result := make([]detachedSnapshotInfo, 0)
 	for _, dataset := range datasets {
-		if dataset.Comments != detachedSnapshotComment {
+		if dataset.UserProperties[detachedSnapshotProperty] != detachedSnapshotPropertyValue {
 			continue
 		}
 		fullPath := datasetPathForEntry(dataset)
