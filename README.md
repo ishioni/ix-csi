@@ -325,11 +325,8 @@ make build
 ### Build container images
 
 ```bash
-# Build Alpine-based image (standard Kubernetes)
+# Build the container image
 make docker-build
-
-# Build UBI-based image (Red Hat OpenShift certification)
-make build-ubi
 ```
 
 ### Push to quay.io
@@ -338,10 +335,7 @@ make build-ubi
 # Login to quay.io
 docker login quay.io
 
-# Push UBI image to quay.io/truenas_solutions
-make push-ubi
-
-# Push all images
+# Push all driver images
 make push-all
 ```
 
@@ -353,10 +347,9 @@ make test
 
 ## Container Images
 
-| Image                                   | Description                                        |
-| --------------------------------------- | -------------------------------------------------- |
-| `ghcr.io/truenas/truenas-csi`           | CSI driver (Alpine-based, for standard Kubernetes) |
-| `quay.io/truenas_solutions/truenas-csi` | CSI driver (UBI-based, for Red Hat OpenShift)      |
+| Image                         | Description          |
+| ----------------------------- | -------------------- |
+| `ghcr.io/truenas/truenas-csi` | CSI driver container |
 
 ## Running the Demo
 
@@ -364,29 +357,20 @@ For an interactive demonstration of all driver features using a local Kind clust
 
 ## OpenShift
 
-The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. The UBI-based image is available for Red Hat certification. OpenShift still requires the driver node service account to be granted a privileged SCC; see the [OpenShift installation guide](docs/openshift/installation.md).
+The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. Set `openshift.enabled=true` to have the chart create the required SCCs and capabilities ConfigMap.
 
 ### Quick Start (OpenShift)
 
 ```bash
-kubectl apply -f deploy/openshift/scc.yaml
 helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --namespace truenas-csi \
   --create-namespace \
+  --set openshift.enabled=true \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
   --set config.truenasInsecure=true \
   --set-string config.defaultPool="tank" \
-  --set-string secret.apiKey="YOUR-API-KEY" \
-  --set-string image.repository="quay.io/truenas_solutions/truenas-csi"
+  --set-string secret.apiKey="YOUR-API-KEY"
 ```
-
-### OpenShift Documentation
-
-- [Installation Guide](docs/openshift/installation.md) - Detailed Helm installation steps
-- [Configuration Reference](docs/openshift/configuration.md) - Helm and StorageClass options
-- [Upgrade Guide](docs/openshift/upgrade.md) - Upgrade procedures
-- [Cluster Setup Guide](docs/openshift/cluster-setup.md) - Set up an OpenShift cluster on vSphere (agent-based install) for testing/certification
-- [Red Hat Certification Guide](docs/openshift/certification.md) - Certification process and requirements
 
 ## Demo Scripts
 
@@ -399,24 +383,12 @@ Interactive demo scripts are provided to test the CSI driver:
 ./demo-simple.sh
 ```
 
-### OpenShift (CRC/OpenShift Local)
-
-```bash
-# Set environment variables
-export TRUENAS_IP=192.168.1.100
-export TRUENAS_API_KEY=your-api-key
-export TRUENAS_POOL=tank
-
-# Run the demo
-./demo-openshift.sh
-```
-
-Both demos provide interactive menus to test NFS/iSCSI provisioning, volume expansion, snapshots, and cloning.
+The OpenShift installation command is shown above; set `openshift.enabled=true` when installing the chart.
 
 ## Contributing
 
-- Report issues: https://github.com/truenas/truenas-csi/issues
-- Submit pull requests: https://github.com/truenas/truenas-csi/pulls
+- Report issues: https://github.com/ishioni/ix-csi/issues
+- Submit pull requests: https://github.com/ishioni/ix-csi/pulls
 
 ## License
 

@@ -334,6 +334,19 @@
       "title": "node",
       "type": "object"
     },
+    "openshift": {
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Create OpenShift SCCs and the certification capabilities ConfigMap.",
+          "title": "enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "title": "openshift",
+      "type": "object"
+    },
     "rbac": {
       "properties": {
         "create": {

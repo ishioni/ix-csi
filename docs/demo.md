@@ -209,7 +209,7 @@ The demo requires TrueNAS connection details and an API key before it can instal
 
 ### "Failed to create driver: invalid iSCSI IQN base format"
 
-Your `iscsiIQNBase` in the ConfigMap has an invalid format. It must:
+Your `TRUENAS_ISCSI_IQN_BASE` value has an invalid format. It must:
 
 - Start with `iqn.`
 - Include date in `YYYY-MM` format
@@ -220,7 +220,7 @@ Your `iscsiIQNBase` in the ConfigMap has an invalid format. It must:
 ### "Pool 'tank' not found"
 
 - Verify the pool exists in TrueNAS UI (Storage → Pools)
-- Update `defaultPool` in the ConfigMap to match your actual pool name
+- Update `TRUENAS_POOL` to match your actual pool name
 - Pool names are case-sensitive
 
 ### "PVC stuck in Pending"

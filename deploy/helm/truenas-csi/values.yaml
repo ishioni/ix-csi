@@ -39,6 +39,10 @@ serviceAccount:
 rbac:
   create: true
 
+openshift:
+  # Create OpenShift SCCs and the certification capabilities ConfigMap.
+  enabled: false
+
 controller:
   replicas: 1
   priorityClassName: ""

@@ -111,7 +111,7 @@ check_cluster_and_driver() {
     fi
 }
 
-# Validate YAML configuration
+# Validate environment configuration
 validate_yaml_config() {
     print_header "Configuration Check"
 
