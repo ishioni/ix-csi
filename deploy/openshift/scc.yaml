@@ -11,7 +11,7 @@ metadata:
   labels:
     app.kubernetes.io/name: truenas-csi
     app.kubernetes.io/component: node
-    app.kubernetes.io/managed-by: truenas-csi-operator
+    app.kubernetes.io/managed-by: truenas-csi
 allowPrivilegedContainer: true
 allowHostIPC: true
 allowHostNetwork: true
@@ -37,7 +37,7 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:truenas-csi:truenas-csi-node-sa
+  - system:serviceaccount:truenas-csi:truenas-csi-node
 
 ---
 # SCC for CSI Controller Deployment - allows CSI sidecars to run as root
@@ -48,7 +48,7 @@ metadata:
   labels:
     app.kubernetes.io/name: truenas-csi
     app.kubernetes.io/component: controller
-    app.kubernetes.io/managed-by: truenas-csi-operator
+    app.kubernetes.io/managed-by: truenas-csi
 allowPrivilegedContainer: false
 allowHostNetwork: false
 allowHostPID: false
@@ -69,4 +69,4 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:truenas-csi:truenas-csi-controller-sa
+  - system:serviceaccount:truenas-csi:truenas-csi-controller

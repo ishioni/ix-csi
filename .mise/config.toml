@@ -13,7 +13,7 @@ yq = "4.53.3"
 zizmor = "1.28.0"
 
 [tasks.build]
-description = "Compile the driver and operator"
+description = "Compile the CSI driver"
 run = "go build ./..."
 
 [tasks.vet]
@@ -26,11 +26,11 @@ run = "go test -timeout 30s ./... -coverprofile=cover.out"
 
 [tasks.fmt]
 description = "Format Go sources"
-run = "gofmt -w cmd pkg operator"
+run = "gofmt -w cmd pkg"
 
 [tasks.fmt-check]
 description = "Verify Go formatting"
-run = "test -z \"$(gofmt -l cmd pkg operator)\""
+run = "test -z \"$(gofmt -l cmd pkg)\""
 
 [tasks.oxfmt]
 description = "Format YAML, JSON, Markdown, and other non-Go project files"
