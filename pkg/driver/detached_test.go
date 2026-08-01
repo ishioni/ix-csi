@@ -47,6 +47,28 @@ func TestDatasetPathsOverlap(t *testing.T) {
 	}
 }
 
+func TestValidateDetachedVolumePaths(t *testing.T) {
+	if err := validateDetachedVolumePaths("tank/volumes/source", "tank/volumes/target"); err != nil {
+		t.Fatalf("validateDetachedVolumePaths returned an unexpected error: %v", err)
+	}
+
+	for _, test := range []struct {
+		name   string
+		source string
+		target string
+	}{
+		{name: "source overlaps target", source: "tank/volumes", target: "tank/volumes/target"},
+		{name: "invalid source", source: "tank/volumes/../source", target: "tank/volumes/target"},
+		{name: "invalid target", source: "tank/volumes/source", target: "tank/volumes/../target"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateDetachedVolumePaths(test.source, test.target); err == nil {
+				t.Fatalf("validateDetachedVolumePaths(%q, %q) accepted invalid paths", test.source, test.target)
+			}
+		})
+	}
+}
+
 func TestDetachedSnapshotParts(t *testing.T) {
 	source, name, err := detachedSnapshotParts("tank/volumes/pvc-a/daily")
 	if err != nil {

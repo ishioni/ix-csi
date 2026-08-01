@@ -12,7 +12,8 @@ is reported ready.
 ## Configuration
 
 Set `TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET` to a dataset root dedicated to
-detached objects. For example:
+detached snapshots. This setting is required when `detachedSnapshots` is
+enabled. For example:
 
 ```yaml
 data:
@@ -39,18 +40,17 @@ detached snapshots, and an unmarked dataset at an exact CSI-derived target
 path is rejected as a collision rather than adopted or deleted.
 
 The Helm chart exposes the same setting as
-`config.detachedSnapshotParentDataset`. The setting is optional until one
-of the detached features is enabled.
+`config.detachedSnapshotParentDataset`. Detached volume replication does not
+use this setting and can write to the normal StorageClass `datasetPath`.
 
 ## Per-class options
 
 Set `detachedSnapshots: "true"` on a `VolumeSnapshotClass` to create received
 datasets instead of ZFS snapshots.
 
-Set `detachedVolumesFromSnapshots: "true"` on a `StorageClass` to create an
-independent volume from either a regular or detached snapshot. Set
-`detachedVolumesFromVolumes: "true"` to create an independent volume from an
-existing volume. These options are independent and can be enabled separately.
+Set `detachedVolumes: "true"` on a `StorageClass` to create an independent
+volume from either a regular or detached snapshot, or from an existing volume.
+This option does not require `TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET`.
 
 Detached volume creation is implemented with the TrueNAS 25.10 WebSocket
 `replication.run_onetime` job and its `core.get_jobs` status API. The driver

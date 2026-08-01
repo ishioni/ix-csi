@@ -36,11 +36,6 @@ func detachedBoolParameter(parameters map[string]string, key string) (bool, erro
 	return value == "true", nil
 }
 
-func detachedParameterEnabled(parameters map[string]string, key string) bool {
-	enabled, _ := detachedBoolParameter(parameters, key)
-	return enabled
-}
-
 func datasetPathsOverlap(first, second string) bool {
 	first = strings.TrimSuffix(strings.TrimSpace(first), "/")
 	second = strings.TrimSuffix(strings.TrimSpace(second), "/")
@@ -155,6 +150,19 @@ func (s *ControllerServer) validateDetachedTarget(targetDataset string) error {
 	return nil
 }
 
+func validateDetachedVolumePaths(sourceDataset, targetDataset string) error {
+	if err := validateDatasetPath(sourceDataset); err != nil {
+		return fmt.Errorf("invalid detached volume source %q: %w", sourceDataset, err)
+	}
+	if err := validateDatasetPath(targetDataset); err != nil {
+		return fmt.Errorf("invalid detached volume target %q: %w", targetDataset, err)
+	}
+	if datasetPathsOverlap(sourceDataset, targetDataset) {
+		return fmt.Errorf("detached volume source %q overlaps target %q", sourceDataset, targetDataset)
+	}
+	return nil
+}
+
 func (s *ControllerServer) ensureDataset(ctx context.Context, datasetPath string) error {
 	if _, err := s.driver.Client().GetDataset(ctx, datasetPath); err == nil {
 		return nil
@@ -263,21 +271,21 @@ func (s *ControllerServer) transferDetachedSnapshot(ctx context.Context, sourceS
 }
 
 func (s *ControllerServer) cloneDetachedSnapshot(ctx context.Context, snapshotID, targetDataset string) error {
-	parent, err := s.detachedParent()
-	if err != nil {
-		return err
-	}
 	if strings.Contains(snapshotID, "@") {
 		separator := strings.LastIndexByte(snapshotID, '@')
 		if separator <= 0 {
 			return fmt.Errorf("invalid source snapshot ID %q", snapshotID)
 		}
-		if err := s.validateDetachedSource(snapshotID[:separator]); err != nil {
+		if err := validateDetachedVolumePaths(snapshotID[:separator], targetDataset); err != nil {
 			return err
 		}
 		return s.transferDetachedSnapshot(ctx, snapshotID, targetDataset, false)
 	}
 
+	parent, err := s.detachedParent()
+	if err != nil {
+		return err
+	}
 	sourceVolumeID, _, err := detachedSnapshotParts(snapshotID)
 	if err != nil {
 		return err
@@ -287,6 +295,9 @@ func (s *ControllerServer) cloneDetachedSnapshot(ctx context.Context, snapshotID
 	}
 	sourceDataset, err := detachedSnapshotDataset(parent, snapshotID)
 	if err != nil {
+		return err
+	}
+	if err := validateDetachedVolumePaths(sourceDataset, targetDataset); err != nil {
 		return err
 	}
 	dataset, err := s.driver.Client().GetDataset(ctx, sourceDataset)
@@ -361,10 +372,7 @@ func (s *ControllerServer) createDetachedSnapshot(ctx context.Context, sourceVol
 }
 
 func (s *ControllerServer) cloneDetachedVolume(ctx context.Context, sourceDataset, targetDataset, volumeID string) error {
-	if err := s.validateDetachedSource(sourceDataset); err != nil {
-		return err
-	}
-	if err := s.validateDetachedTarget(targetDataset); err != nil {
+	if err := validateDetachedVolumePaths(sourceDataset, targetDataset); err != nil {
 		return err
 	}
 	tempName := detachedVolumeSourcePrefix + SanitizeVolumeName(strings.ReplaceAll(volumeID, "/", "-"))

@@ -10,7 +10,7 @@
         },
         "detachedSnapshotParentDataset": {
           "default": "",
-          "description": "Required when detachedSnapshots or detached volume cloning is enabled.\nKeep this dataset root separate from normal CSI volume datasets.",
+          "description": "Required when detachedSnapshots is enabled.\nKeep this dataset root separate from normal CSI volume datasets.",
           "title": "detachedSnapshotParentDataset",
           "type": "string"
         },

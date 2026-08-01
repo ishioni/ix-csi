@@ -70,15 +70,14 @@ const (
 
 // StorageClass parameter keys
 const (
-	paramProtocol                     = "protocol"
-	paramPool                         = "pool"
-	paramDatasetPath                  = "datasetPath"
-	paramCompression                  = "compression"
-	paramSync                         = "sync"
-	paramVolBlockSize                 = "volblocksize"
-	paramSparse                       = "sparse"
-	paramDetachedVolumesFromSnapshots = "detachedVolumesFromSnapshots"
-	paramDetachedVolumesFromVolumes   = "detachedVolumesFromVolumes"
+	paramProtocol        = "protocol"
+	paramPool            = "pool"
+	paramDatasetPath     = "datasetPath"
+	paramCompression     = "compression"
+	paramSync            = "sync"
+	paramVolBlockSize    = "volblocksize"
+	paramSparse          = "sparse"
+	paramDetachedVolumes = "detachedVolumes"
 
 	// iSCSI parameters
 	paramISCSIBlockSize      = "iscsi.blocksize"
@@ -257,17 +256,10 @@ func (s *ControllerServer) validateStorageClassParameters(ctx context.Context, p
 		}
 	}
 
-	// Detached transfers require a separate dataset root so that the received
-	// dataset does not share ancestry with regular CSI volumes.
-	for _, key := range []string{paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes} {
-		if _, err := detachedBoolParameter(parameters, key); err != nil {
-			return err
-		}
-	}
-	if detachedParameterEnabled(parameters, paramDetachedVolumesFromSnapshots) || detachedParameterEnabled(parameters, paramDetachedVolumesFromVolumes) {
-		if s.driver.DetachedSnapshotParentDataset() == "" {
-			return fmt.Errorf("%s or %s requires TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET", paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes)
-		}
+	// Detached volume transfers are received into the normal StorageClass
+	// dataset path and do not require the detached snapshot parent dataset.
+	if _, err := detachedBoolParameter(parameters, paramDetachedVolumes); err != nil {
+		return err
 	}
 
 	// Validate datasetPath (no leading/trailing slashes, no path traversal)
@@ -1349,7 +1341,7 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			return nil, status.Error(codes.InvalidArgument, "snapshot ID is required")
 		}
 
-		detached, err := detachedBoolParameter(parameters, paramDetachedVolumesFromSnapshots)
+		detached, err := detachedBoolParameter(parameters, paramDetachedVolumes)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid storage class parameters: %v", err)
 		}
@@ -1443,7 +1435,7 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			return nil, status.Errorf(codes.NotFound, "source volume not found: %v", err)
 		}
 
-		detached, err := detachedBoolParameter(parameters, paramDetachedVolumesFromVolumes)
+		detached, err := detachedBoolParameter(parameters, paramDetachedVolumes)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid storage class parameters: %v", err)
 		}

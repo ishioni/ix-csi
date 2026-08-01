@@ -954,7 +954,7 @@ func (d *Driver) DefaultPool() string {
 }
 
 // DetachedSnapshotParentDataset returns the dataset root used for
-// detached snapshots and detached volume clones.
+// detached snapshots.
 func (d *Driver) DetachedSnapshotParentDataset() string {
 	return d.detachedSnapshotParentDataset
 }

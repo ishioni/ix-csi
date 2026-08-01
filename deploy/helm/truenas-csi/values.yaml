@@ -15,7 +15,7 @@ config:
   iscsiPortal: ""
   nvmeofPortal: ""
   iscsiIQNBase: iqn.2000-01.io.truenas
-  # Required when detachedSnapshots or detached volume cloning is enabled.
+  # Required when detachedSnapshots is enabled.
   # Keep this dataset root separate from normal CSI volume datasets.
   detachedSnapshotParentDataset: ""
 
