@@ -2219,7 +2219,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			return nil, status.Errorf(codes.Internal, "failed to find detached snapshot: %v", getErr)
 		}
 		if !isDetachedSnapshotDataset(dataset) {
-			return nil, status.Errorf(codes.FailedPrecondition, "dataset %s is not an ix-csi detached snapshot", targetDataset)
+			return nil, status.Errorf(codes.FailedPrecondition, "dataset %s is not a truenas-csi detached snapshot", targetDataset)
 		}
 		err = s.driver.Client().DeleteDataset(ctx, targetDataset, &client.DatasetDeleteOptions{Recursive: true, Force: true})
 		if err != nil && !client.IsNotFoundError(err) {
