@@ -50,7 +50,7 @@ Kubernetes: `>=1.26.0-0`
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.pullSecrets | list | `[]` |  |
-| image.repository | string | `"ghcr.io/truenas/truenas-csi"` |  |
+| image.repository | string | `"ghcr.io/ishioni/ix-csi"` |  |
 | image.tag | string | `""` |  |
 | nameOverride | string | `""` |  |
 | node.affinity | object | `{}` |  |

@@ -186,7 +186,7 @@
           "type": "array"
         },
         "repository": {
-          "default": "ghcr.io/truenas/truenas-csi",
+          "default": "ghcr.io/ishioni/ix-csi",
           "title": "repository",
           "type": "string"
         },
