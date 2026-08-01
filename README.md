@@ -383,7 +383,7 @@ Interactive demo scripts are provided to test the CSI driver:
 ./demo-simple.sh
 ```
 
- The OpenShift installation command is shown above; set `openshift.enabled=true` when installing the chart.
+The OpenShift installation command is shown above; set `openshift.enabled=true` when installing the chart.
 
 ## Contributing
 
