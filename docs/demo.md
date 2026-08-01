@@ -275,4 +275,4 @@ For production use on a real Kubernetes cluster:
 
 ## Getting Help
 
-- **Report issues**: https://github.com/truenas/truenas-csi/issues
+- **Report issues**: https://github.com/ishioni/ix-csi/issues

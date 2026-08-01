@@ -101,9 +101,8 @@ storageClasses: []
 #      compression: lz4
 #      volblocksize: 16K
 #
-# Secret-backed credential support is adapted from Lloyd Hazlett's upstream PR
-# https://github.com/truenas/truenas-csi/pull/46 and can be passed through the chart's arbitrary
-# StorageClass parameters. For example, an iSCSI CHAP StorageClass can use:
+# Secret-backed credentials can be passed through the chart's arbitrary StorageClass parameters.
+# For example, an iSCSI CHAP StorageClass can use:
 #      iscsi.chapUser: chapuser
 #      csi.storage.k8s.io/provisioner-secret-name: truenas-iscsi-chap
 #      csi.storage.k8s.io/provisioner-secret-namespace: truenas-csi

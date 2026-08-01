@@ -4,7 +4,7 @@
 
 Helm chart for deploying the TrueNAS CSI driver
 
-**Homepage:** <https://github.com/truenas/truenas-csi>
+**Homepage:** <https://github.com/ishioni/ix-csi>
 
 ## Maintainers
 
@@ -14,7 +14,7 @@ Helm chart for deploying the TrueNAS CSI driver
 
 ## Source Code
 
-* <https://github.com/truenas/truenas-csi>
+* <https://github.com/ishioni/ix-csi>
 
 ## Requirements
 
