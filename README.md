@@ -325,11 +325,8 @@ make build
 ### Build container images
 
 ```bash
-# Build Alpine-based image (standard Kubernetes)
+# Build the container image
 make docker-build
-
-# Build UBI-based image (Red Hat OpenShift certification)
-make build-ubi
 ```
 
 ### Push to quay.io
@@ -338,10 +335,7 @@ make build-ubi
 # Login to quay.io
 docker login quay.io
 
-# Push UBI image to quay.io/truenas_solutions
-make push-ubi
-
-# Push all images
+# Push all driver images
 make push-all
 ```
 
@@ -353,10 +347,9 @@ make test
 
 ## Container Images
 
-| Image                                   | Description                                        |
-| --------------------------------------- | -------------------------------------------------- |
-| `ghcr.io/truenas/truenas-csi`           | CSI driver (Alpine-based, for standard Kubernetes) |
-| `quay.io/truenas_solutions/truenas-csi` | CSI driver (UBI-based, for Red Hat OpenShift)      |
+| Image                         | Description          |
+| ----------------------------- | -------------------- |
+| `ghcr.io/truenas/truenas-csi` | CSI driver container |
 
 ## Running the Demo
 
@@ -364,7 +357,7 @@ For an interactive demonstration of all driver features using a local Kind clust
 
 ## OpenShift
 
-The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. The UBI-based image is available for Red Hat certification. Set `openshift.enabled=true` to have the chart create the required SCCs and certification capabilities ConfigMap.
+The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. Set `openshift.enabled=true` to have the chart create the required SCCs and capabilities ConfigMap.
 
 ### Quick Start (OpenShift)
 
@@ -376,8 +369,7 @@ helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
   --set config.truenasInsecure=true \
   --set-string config.defaultPool="tank" \
-  --set-string secret.apiKey="YOUR-API-KEY" \
-  --set-string image.repository="quay.io/truenas_solutions/truenas-csi"
+  --set-string secret.apiKey="YOUR-API-KEY"
 ```
 
 ## Demo Scripts

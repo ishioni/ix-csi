@@ -59,34 +59,18 @@ docker-build: ## Build standard Docker image (Alpine-based)
 docker-push: ## Push standard Docker image
 	docker push $(DRIVER_IMAGE):$(IMG_TAG)
 
-##@ OpenShift / Red Hat Certification Builds
-
-.PHONY: build-ubi
-build-ubi: ## Build UBI-based driver image for Red Hat certification
-	docker build --pull -f Dockerfile.ubi --provenance=false --sbom=false --build-arg VERSION=$(VERSION) -t $(DRIVER_IMAGE):$(IMG_TAG) .
-
-.PHONY: push-ubi
-push-ubi: ## Push UBI-based driver image
-	docker push $(DRIVER_IMAGE):$(IMG_TAG)
-
 .PHONY: push-latest
 push-latest: ## Push the driver image with the 'latest' tag
 	docker tag $(DRIVER_IMAGE):$(IMG_TAG) $(DRIVER_IMAGE):latest
 	docker push $(DRIVER_IMAGE):latest
 
-##@ Red Hat Certification
-
-.PHONY: preflight-container
-preflight-container: ## Run Red Hat preflight check on container image
-	preflight check container $(DRIVER_IMAGE):$(IMG_TAG)
-
 ##@ Build All
 
 .PHONY: build-all
-build-all: build-ubi ## Build the UBI driver image
+build-all: docker-build ## Build the driver image
 
 .PHONY: push-all
-push-all: push-ubi ## Push all versioned driver images (excludes 'latest' tag)
+push-all: docker-push ## Push the versioned driver image
 
 ##@ Release
 
@@ -98,4 +82,3 @@ release: build-all push-all push-latest ## Build and push the driver image inclu
 	@echo ""
 	@echo "Next steps:"
 	@echo "  1. Tag the git repository: git tag v$(VERSION) && git push --tags"
-	@echo "  2. Submit to Red Hat certification (if applicable)"
