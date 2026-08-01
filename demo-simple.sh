@@ -8,6 +8,16 @@ set -e
 CLUSTER_NAME="${KIND_CLUSTER_NAME:-truenas-csi-demo}"
 NAMESPACE="truenas-csi"
 DEMO_NAMESPACE="demo"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CHART_DIR="${SCRIPT_DIR}/deploy/helm/truenas-csi"
+
+TRUENAS_URL="${TRUENAS_URL:-wss://truenas.example.com/api/current}"
+TRUENAS_INSECURE="${TRUENAS_INSECURE:-true}"
+TRUENAS_POOL="${TRUENAS_POOL:-tank}"
+TRUENAS_NFS_SERVER="${TRUENAS_NFS_SERVER:-}"
+TRUENAS_ISCSI_PORTAL="${TRUENAS_ISCSI_PORTAL:-}"
+TRUENAS_ISCSI_IQN_BASE="${TRUENAS_ISCSI_IQN_BASE:-iqn.2000-01.io.truenas}"
+TRUENAS_API_KEY="${TRUENAS_API_KEY:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -68,6 +78,11 @@ check_prerequisites() {
         missing=1
     fi
 
+    if ! command -v helm &> /dev/null; then
+        print_error "helm not found. Install from: https://helm.sh/docs/intro/install/"
+        missing=1
+    fi
+
     if [ $missing -eq 1 ]; then
         print_error "Please install missing prerequisites and try again"
         exit 1
@@ -100,22 +115,31 @@ check_cluster_and_driver() {
 validate_yaml_config() {
     print_header "Configuration Check"
 
-    print_info "This demo uses the configuration from:"
-    echo "  deploy/truenas-csi-driver.yaml"
+    print_info "This demo configures the Helm chart from environment variables."
     echo ""
-    print_warning "Before running this demo, please ensure you have edited the YAML file with:"
-    echo "  1. TrueNAS connection details (ConfigMap: truenas-csi-config)"
-    echo "  2. TrueNAS API key (Secret: truenas-api-credentials)"
+    print_warning "Before running this demo, set the following variables:"
+    echo "  TRUENAS_URL=${TRUENAS_URL}"
+    echo "  TRUENAS_POOL=${TRUENAS_POOL}"
+    echo "  TRUENAS_API_KEY=<hidden>"
     echo ""
 
-    read -p "Have you configured deploy/truenas-csi-driver.yaml with your TrueNAS settings? [y/N]: " CONFIGURED
+    if [ -z "${TRUENAS_API_KEY}" ]; then
+        print_error "TRUENAS_API_KEY is not set."
+        echo ""
+        echo "  export TRUENAS_URL=wss://your-truenas.example.com/api/current"
+        echo "  export TRUENAS_POOL=tank"
+        echo "  export TRUENAS_API_KEY=YOUR-API-KEY"
+        echo "  ./demo-simple.sh"
+        echo ""
+        exit 1
+    fi
+
+    read -p "Are these TrueNAS settings correct? [y/N]: " CONFIGURED
     if [[ ! $CONFIGURED =~ ^[Yy]$ ]]; then
         echo ""
-        print_error "Please edit deploy/truenas-csi-driver.yaml first:"
+        print_error "Set the TrueNAS environment variables and run this demo again:"
         echo ""
-        echo "  1. Update ConfigMap 'truenas-csi-config' with your TrueNAS IP and pool"
-        echo "  2. Update Secret 'truenas-api-credentials' with your TrueNAS API key"
-        echo "  3. Run this demo again"
+        echo "  TRUENAS_URL, TRUENAS_POOL, and TRUENAS_API_KEY"
         echo ""
         exit 1
     fi
@@ -176,12 +200,22 @@ build_and_load_image() {
 deploy_driver() {
     print_header "Deploying TrueNAS CSI Driver"
 
-    # Deploy using the pre-configured YAML
-    print_info "Deploying driver from deploy/truenas-csi-driver.yaml..."
+    print_info "Installing the local Helm chart..."
 
-    kubectl apply -f deploy/truenas-csi-driver.yaml
+    helm upgrade --install truenas-csi "${CHART_DIR}" \
+        --namespace "${NAMESPACE}" \
+        --create-namespace \
+        --set image.tag=latest \
+        --set image.pullPolicy=IfNotPresent \
+        --set-string config.truenasURL="${TRUENAS_URL}" \
+        --set config.truenasInsecure="${TRUENAS_INSECURE}" \
+        --set-string config.defaultPool="${TRUENAS_POOL}" \
+        --set-string config.nfsServer="${TRUENAS_NFS_SERVER}" \
+        --set-string config.iscsiPortal="${TRUENAS_ISCSI_PORTAL}" \
+        --set-string config.iscsiIQNBase="${TRUENAS_ISCSI_IQN_BASE}" \
+        --set-string secret.apiKey="${TRUENAS_API_KEY}"
 
-    print_success "Deployment manifest applied"
+    print_success "Helm release installed"
     echo ""
 
     print_info "Waiting for CSI driver to be ready..."
@@ -190,25 +224,25 @@ deploy_driver() {
 
     if kubectl wait --namespace=${NAMESPACE} \
         --for=condition=ready pod \
-        --selector=app=truenas-csi-controller \
+        --selector=app.kubernetes.io/component=controller \
         --timeout=120s 2>/dev/null; then
         print_success "Controller pod is ready"
     else
         print_error "Controller pod failed to start"
         print_info "Checking controller logs..."
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=20 2>/dev/null || echo "No logs available"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=20 2>/dev/null || echo "No logs available"
         return 1
     fi
 
     if kubectl wait --namespace=${NAMESPACE} \
         --for=condition=ready pod \
-        --selector=app=truenas-csi-node \
+        --selector=app.kubernetes.io/component=node \
         --timeout=120s 2>/dev/null; then
         print_success "Node pods are ready"
     else
         print_error "Node pods failed to start"
         print_info "Checking node logs..."
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-node -c csi-node --tail=20 2>/dev/null || echo "No logs available"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=node -c csi-node --tail=20 2>/dev/null || echo "No logs available"
         return 1
     fi
 
@@ -399,7 +433,7 @@ EOF
         # Show driver logs
         print_step "4. CSI Controller Logs (CreateVolume operation)"
         print_info "Look for 'CreateVolume' and 'NFS share created' messages:"
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=30 | grep -E "CreateVolume|NFS|dataset" || echo "(No matching log entries found - check full logs with option 8)"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=30 | grep -E "CreateVolume|NFS|dataset" || echo "(No matching log entries found - check full logs with option 8)"
         echo ""
 
         print_success "✅ NFS volume created on TrueNAS!"
@@ -417,7 +451,7 @@ EOF
 
     else
         print_error "PVC failed to bind. Check driver logs:"
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=50
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=50
     fi
 
     echo ""
@@ -468,7 +502,7 @@ EOF
         # Show driver logs
         print_step "4. CSI Controller Logs (CreateVolume operation)"
         print_info "Look for 'CreateVolume' and 'iSCSI' messages:"
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=30 | grep -E "CreateVolume|iSCSI|ZVOL|target|extent" || echo "(No matching log entries found - check full logs with option 8)"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=30 | grep -E "CreateVolume|iSCSI|ZVOL|target|extent" || echo "(No matching log entries found - check full logs with option 8)"
         echo ""
 
         print_success "✅ iSCSI volume created on TrueNAS!"
@@ -488,7 +522,7 @@ EOF
 
     else
         print_error "PVC failed to bind. Check driver logs:"
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=50
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=50
     fi
 
     echo ""
@@ -589,7 +623,7 @@ EOF
     echo ""
 
     print_step "4. CSI Controller Logs (ControllerExpandVolume)"
-    kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=20 | grep -E "Expand|resize|quota" || echo "(No matching log entries found)"
+    kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=20 | grep -E "Expand|resize|quota" || echo "(No matching log entries found)"
     echo ""
 
     echo -e "${BOLD}What just happened:${NC}"
@@ -866,7 +900,7 @@ EOF
     # Show controller logs for snapshot creation
     print_step "4. CSI Controller Logs (CreateSnapshot operation)"
     print_info "Checking if snapshot was created in TrueNAS:"
-    kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=20 | grep -E "CreateSnapshot|snapshot" || echo "(No snapshot log entries found - check full logs)"
+    kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=20 | grep -E "CreateSnapshot|snapshot" || echo "(No snapshot log entries found - check full logs)"
     echo ""
 
     print_success "✅ Snapshot created successfully!"
@@ -992,11 +1026,11 @@ EOF
 
         print_step "Diagnostics: Controller Logs (Last 50 lines)"
         print_warning "Looking for errors in CreateVolume from snapshot..."
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=50 | grep -E "error|Error|failed|Failed|CreateVolume|snapshot" || kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=50
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=50 | grep -E "error|Error|failed|Failed|CreateVolume|snapshot" || kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=50
         echo ""
 
         print_step "Diagnostics: Snapshotter Sidecar Logs"
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-snapshotter --tail=30 2>/dev/null || echo "Snapshotter logs not available"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-snapshotter --tail=30 2>/dev/null || echo "Snapshotter logs not available"
         echo ""
 
         echo -e "${YELLOW}Common issues:${NC}"
@@ -1113,7 +1147,7 @@ demo_capabilities() {
     print_step "1. Getting CSI Identity information"
 
     # Find controller pod
-    CONTROLLER_POD=$(kubectl get pod -n ${NAMESPACE} -l app=truenas-csi-controller -o jsonpath='{.items[0].metadata.name}')
+    CONTROLLER_POD=$(kubectl get pod -n ${NAMESPACE} -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}')
 
     if [ -z "$CONTROLLER_POD" ]; then
         print_error "Controller pod not found"
@@ -1323,12 +1357,12 @@ view_logs() {
     print_header "CSI Driver Logs"
 
     echo -e "${CYAN}Controller logs (last 50 lines):${NC}"
-    kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=50
+    kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=50
     echo ""
     echo ""
 
     echo -e "${CYAN}Node logs (last 50 lines):${NC}"
-    kubectl logs -n ${NAMESPACE} -l app=truenas-csi-node -c csi-node --tail=50
+    kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=node -c csi-node --tail=50
     echo ""
 
     read -p "Press Enter to continue..."
@@ -1452,7 +1486,7 @@ EOF
         --timeout=120s; then
         print_error "Clone PVC failed to bind"
         print_info "Checking controller logs..."
-        kubectl logs -n ${NAMESPACE} -l app=truenas-csi-controller -c csi-controller --tail=20 | grep -i "clone\|error" || echo "No errors found"
+        kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/component=controller -c csi-controller --tail=20 | grep -i "clone\|error" || echo "No errors found"
         return
     fi
     print_success "Clone created successfully"

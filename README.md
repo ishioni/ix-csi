@@ -45,16 +45,20 @@ A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.tr
 2. **Configure the driver**
 
    ```bash
-   # Edit the deployment manifest
-   vi deploy/truenas-csi-driver.yaml
-   ```
+   The chart is available from the OCI registry or directly from a checkout of this repository.
 
-   Update the ConfigMap with your TrueNAS connection details and the Secret with your API key.
+   ```
 
 3. **Deploy the driver**
 
    ```bash
-   kubectl apply -f deploy/truenas-csi-driver.yaml
+   helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
+     --namespace truenas-csi \
+     --create-namespace \
+     --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
+     --set config.truenasInsecure=true \
+     --set-string config.defaultPool="tank" \
+     --set-string secret.apiKey="YOUR-API-KEY"
    ```
 
 4. **Create a StorageClass and PVC**
@@ -79,11 +83,28 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snaps
 
 ### Deploy the Driver
 
-1. Edit `deploy/truenas-csi-driver.yaml` with your configuration
-2. Apply the manifest:
-   ```bash
-   kubectl apply -f deploy/truenas-csi-driver.yaml
-   ```
+Install the Helm chart and provide your TrueNAS connection details and API key:
+
+```bash
+helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
+  --namespace truenas-csi \
+  --create-namespace \
+  --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
+  --set config.truenasInsecure=true \
+  --set-string config.defaultPool="tank" \
+  --set-string secret.apiKey="YOUR-API-KEY"
+```
+
+To install from a checkout instead, replace the OCI reference with
+`./deploy/helm/truenas-csi`.
+
+### Configure StorageClasses
+
+Create a StorageClass after installing the driver. For example:
+
+```bash
+kubectl apply -f examples/storageclass-nfs.yaml
+```
 
 ### Verify Installation
 
@@ -97,12 +118,13 @@ kubectl get csidrivers
 
 ### Non-Standard Kubelet Paths
 
-The default deployment manifest uses `/var/lib/kubelet` as the kubelet root directory. Some Kubernetes distributions use a different path. If your distribution uses a non-standard path, you must update the following in `deploy/truenas-csi-driver.yaml` before deploying:
+The Helm chart uses `/var/lib/kubelet` as the kubelet root directory by default. Some Kubernetes distributions use a different path. If your distribution uses a non-standard path, set `node.kubeletRootDir` during installation:
 
-1. All `hostPath` values containing `/var/lib/kubelet`
-2. The `DRIVER_REG_SOCK_PATH` environment variable
-3. The `--kubelet-registration-path` argument
-4. The `mountPath` for the `kubelet-dir` volume mount on the `csi-node` container
+```bash
+helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
+  --namespace truenas-csi \
+  --set node.kubeletRootDir=/var/snap/microk8s/common/var/lib/kubelet
+```
 
 | Distribution        | Kubelet Path                                |
 | ------------------- | ------------------------------------------- |
@@ -319,7 +341,7 @@ docker login quay.io
 # Push UBI image to quay.io/truenas_solutions
 make push-ubi
 
-# Push all images (driver, operator, bundle)
+# Push all images
 make push-all
 ```
 
@@ -331,12 +353,10 @@ make test
 
 ## Container Images
 
-| Image                                                   | Description                                        |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `ghcr.io/truenas/truenas-csi`                           | CSI driver (Alpine-based, for standard Kubernetes) |
-| `quay.io/truenas_solutions/truenas-csi`                 | CSI driver (UBI-based, for Red Hat OpenShift)      |
-| `quay.io/truenas_solutions/truenas-csi-operator`        | Kubernetes operator                                |
-| `quay.io/truenas_solutions/truenas-csi-operator-bundle` | OLM bundle for OperatorHub                         |
+| Image                                   | Description                                        |
+| --------------------------------------- | -------------------------------------------------- |
+| `ghcr.io/truenas/truenas-csi`           | CSI driver (Alpine-based, for standard Kubernetes) |
+| `quay.io/truenas_solutions/truenas-csi` | CSI driver (UBI-based, for Red Hat OpenShift)      |
 
 ## Running the Demo
 
@@ -344,44 +364,26 @@ For an interactive demonstration of all driver features using a local Kind clust
 
 ## OpenShift
 
-The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and is designed for OperatorHub distribution.
+The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. The UBI-based image is available for Red Hat certification. OpenShift still requires the driver node service account to be granted a privileged SCC; see the [OpenShift installation guide](docs/openshift/installation.md).
 
 ### Quick Start (OpenShift)
 
-1. **Install via OperatorHub**
-   - Navigate to **Operators** > **OperatorHub**
-   - Search for "TrueNAS CSI"
-   - Click **Install**
-
-2. **Create credentials secret**
-
-   ```yaml
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: truenas-api-credentials
-     namespace: truenas-csi
-   stringData:
-     api-key: "YOUR-API-KEY"
-   ```
-
-3. **Create TrueNASCSI resource**
-   ```yaml
-   apiVersion: csi.truenas.io/v1alpha1
-   kind: TrueNASCSI
-   metadata:
-     name: truenas
-   spec:
-     truenasURL: "wss://your-truenas-ip/api/current"
-     credentialsSecret: "truenas-api-credentials"
-     defaultPool: "tank"
-     nfsServer: "your-truenas-ip"
-   ```
+```bash
+kubectl apply -f deploy/openshift/scc.yaml
+helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
+  --namespace truenas-csi \
+  --create-namespace \
+  --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
+  --set config.truenasInsecure=true \
+  --set-string config.defaultPool="tank" \
+  --set-string secret.apiKey="YOUR-API-KEY" \
+  --set-string image.repository="quay.io/truenas_solutions/truenas-csi"
+```
 
 ### OpenShift Documentation
 
-- [Installation Guide](docs/openshift/installation.md) - Detailed installation steps
-- [Configuration Reference](docs/openshift/configuration.md) - CRD and StorageClass options
+- [Installation Guide](docs/openshift/installation.md) - Detailed Helm installation steps
+- [Configuration Reference](docs/openshift/configuration.md) - Helm and StorageClass options
 - [Upgrade Guide](docs/openshift/upgrade.md) - Upgrade procedures
 - [Cluster Setup Guide](docs/openshift/cluster-setup.md) - Set up an OpenShift cluster on vSphere (agent-based install) for testing/certification
 - [Red Hat Certification Guide](docs/openshift/certification.md) - Certification process and requirements
@@ -393,7 +395,7 @@ Interactive demo scripts are provided to test the CSI driver:
 ### Standard Kubernetes (Kind)
 
 ```bash
-# Set TrueNAS connection details in deploy/truenas-csi-driver.yaml, then:
+# Set TRUENAS_URL, TRUENAS_API_KEY, and TRUENAS_POOL, then:
 ./demo-simple.sh
 ```
 
