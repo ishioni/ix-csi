@@ -154,7 +154,7 @@ sudo systemctl enable microk8s-mount-propagation
 | `iscsiPortal`                        | iSCSI portal address                                       | `10.0.0.100:3260`              |
 | `nvmeofPortal`                       | NVMe-oF portal address (optional; auto-derived)            | `10.0.0.100:4420`              |
 | `iscsiIQNBase`                       | Base IQN for iSCSI targets                                 | `iqn.2024-01.com.example`      |
-| `detachedSnapshotsDatasetParentName` | Dataset root for independent snapshots and detached clones | `tank/csi-detached`            |
+| `detachedSnapshotParentDataset`     | Dataset root for independent snapshots and detached clones | `tank/csi-detached`            |
 
 ### StorageClass Parameters
 
@@ -243,7 +243,7 @@ Set `detachedSnapshots: "true"` on a VolumeSnapshotClass to store snapshots as
 independent received datasets. Set `detachedVolumesFromSnapshots: "true"` or
 `detachedVolumesFromVolumes: "true"` on a StorageClass to create independent
 volumes using replication. These options require the configured
-`detachedSnapshotsDatasetParentName` dataset root, which must remain separate
+`detachedSnapshotParentDataset` dataset root, which must remain separate
 from normal CSI volume datasets.
 
 | Parameter                      | Description                                      | Values          |

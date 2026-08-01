@@ -11,12 +11,12 @@ is reported ready.
 
 ## Configuration
 
-Set `TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT` to a dataset root dedicated to
+Set `TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET` to a dataset root dedicated to
 detached objects. For example:
 
 ```yaml
 data:
-  TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT: tank/csi-detached
+  TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET: tank/csi-detached
 ```
 
 The parent is necessary because detached snapshot IDs are represented as
@@ -33,7 +33,7 @@ reintroducing a dependency or allowing a normal volume to be provisioned in
 the detached namespace.
 
 The Helm chart exposes the same setting as
-`config.detachedSnapshotsDatasetParentName`. The setting is optional until one
+`config.detachedSnapshotParentDataset`. The setting is optional until one
 of the detached features is enabled.
 
 ## Per-class options

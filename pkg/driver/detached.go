@@ -116,9 +116,9 @@ func datasetCapacity(dataset *client.Dataset) int64 {
 }
 
 func (s *ControllerServer) detachedParent() (string, error) {
-	parent := s.driver.DetachedSnapshotsDatasetParentName()
+	parent := s.driver.DetachedSnapshotParentDataset()
 	if parent == "" {
-		return "", fmt.Errorf("detached snapshots require TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT")
+		return "", fmt.Errorf("detached snapshots require TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET")
 	}
 	if err := validateDatasetPath(parent); err != nil {
 		return "", fmt.Errorf("invalid detached snapshot dataset parent %q: %w", parent, err)

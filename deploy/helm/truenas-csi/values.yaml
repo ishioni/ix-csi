@@ -17,7 +17,7 @@ config:
   iscsiIQNBase: iqn.2000-01.io.truenas
   # Required when detachedSnapshots or detached volume cloning is enabled.
   # Keep this dataset root separate from normal CSI volume datasets.
-  detachedSnapshotsDatasetParentName: ""
+  detachedSnapshotParentDataset: ""
 
 secret:
   existingSecret:

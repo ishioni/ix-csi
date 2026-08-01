@@ -8,10 +8,10 @@
           "title": "defaultPool",
           "type": "string"
         },
-        "detachedSnapshotsDatasetParentName": {
+        "detachedSnapshotParentDataset": {
           "default": "",
           "description": "Required when detachedSnapshots or detached volume cloning is enabled.\nKeep this dataset root separate from normal CSI volume datasets.",
-          "title": "detachedSnapshotsDatasetParentName",
+          "title": "detachedSnapshotParentDataset",
           "type": "string"
         },
         "iscsiIQNBase": {

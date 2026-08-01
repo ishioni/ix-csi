@@ -265,8 +265,8 @@ func (s *ControllerServer) validateStorageClassParameters(ctx context.Context, p
 		}
 	}
 	if detachedParameterEnabled(parameters, paramDetachedVolumesFromSnapshots) || detachedParameterEnabled(parameters, paramDetachedVolumesFromVolumes) {
-		if s.driver.DetachedSnapshotsDatasetParentName() == "" {
-			return fmt.Errorf("%s or %s requires TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT", paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes)
+		if s.driver.DetachedSnapshotParentDataset() == "" {
+			return fmt.Errorf("%s or %s requires TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET", paramDetachedVolumesFromSnapshots, paramDetachedVolumesFromVolumes)
 		}
 	}
 
@@ -2200,10 +2200,10 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	// Detached snapshots are independent datasets beneath the configured
 	// detached-snapshot root, rather than ZFS snapshot names containing '@'.
 	if !strings.Contains(req.SnapshotId, "@") {
-		parent := s.driver.DetachedSnapshotsDatasetParentName()
+		parent := s.driver.DetachedSnapshotParentDataset()
 		var err error
 		if parent == "" {
-			return nil, status.Error(codes.FailedPrecondition, "detached snapshot deletion requires TRUENAS_DETACHED_SNAPSHOTS_DATASET_PARENT")
+			return nil, status.Error(codes.FailedPrecondition, "detached snapshot deletion requires TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET")
 		}
 		targetDataset, parseErr := detachedSnapshotDataset(parent, req.SnapshotId)
 		if parseErr != nil {
@@ -2260,7 +2260,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	// If snapshot ID is specified, look up that specific snapshot
 	if req.SnapshotId != "" {
 		if !strings.Contains(req.SnapshotId, "@") {
-			parent := s.driver.DetachedSnapshotsDatasetParentName()
+			parent := s.driver.DetachedSnapshotParentDataset()
 			if parent == "" {
 				return &csi.ListSnapshotsResponse{Entries: entries}, nil
 			}
@@ -2353,7 +2353,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			s.driver.Log().V(LogLevelDebug).Info("Failed to list snapshots for volume", "volumeId", req.SourceVolumeId, "error", err)
 			return &csi.ListSnapshotsResponse{Entries: entries}, nil
 		}
-		if s.driver.DetachedSnapshotsDatasetParentName() != "" {
+		if s.driver.DetachedSnapshotParentDataset() != "" {
 			detachedSnapshots, detachedErr := s.listDetachedSnapshots(ctx, req.SourceVolumeId)
 			if detachedErr != nil {
 				return nil, status.Errorf(codes.Internal, "failed to list detached snapshots: %v", detachedErr)
@@ -2398,7 +2398,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		s.driver.Log().V(LogLevelDebug).Info("Failed to list all snapshots", "error", err)
 		return &csi.ListSnapshotsResponse{Entries: entries}, nil
 	}
-	if s.driver.DetachedSnapshotsDatasetParentName() != "" {
+	if s.driver.DetachedSnapshotParentDataset() != "" {
 		detachedSnapshots, detachedErr := s.listDetachedSnapshots(ctx, "")
 		if detachedErr != nil {
 			return nil, status.Errorf(codes.Internal, "failed to list detached snapshots: %v", detachedErr)
