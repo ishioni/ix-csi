@@ -236,19 +236,6 @@ NVMe-oF also uses the `volblocksize` parameter above. DH-CHAP authentication is 
 | `snapshot.naming`        | Naming schema            | `auto-%Y-%m-%d_%H-%M`                  |
 | `snapshot.recursive`     | Include child datasets   | `true`, `false`                        |
 
-#### Detached Snapshots and Volume Clones
-
-Set `detachedSnapshots: "true"` on a VolumeSnapshotClass to store snapshots as
-independent received datasets. Set `detachedVolumes: "true"` on a StorageClass
-to create independent volumes from snapshots or other volumes using
-replication. Only `detachedSnapshots` requires the configured
-`detachedSnapshotParentDataset` dataset root.
-
-| Parameter           | Description                                            | Values          |
-| ------------------- | ------------------------------------------------------ | --------------- |
-| `detachedSnapshots` | Store snapshots as independent received datasets       | `true`, `false` |
-| `detachedVolumes`   | Create an independent volume from a snapshot or volume | `true`, `false` |
-
 #### Encryption Parameters
 
 | Parameter                | Description                | Values                       |
@@ -272,6 +259,19 @@ Sensitive parameters can be supplied from a Kubernetes Secret instead of inline 
 | NVMe-oF DH-CHAP connection (node)              | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace`  | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey`                                                 |
 
 iSCSI CHAP and NVMe-oF DH-CHAP each use both a provisioner-secret (to configure TrueNAS: the CHAP auth group / the nvmet host) and a node-stage-secret (for the node's login/connection); the same Secret can serve both roles. The controller ServiceAccount is granted `get`/`list`/`watch` on `secrets` so the external-provisioner can resolve the provisioner-secret; node-stage secrets are resolved by kubelet. See `examples/storageclass-iscsi-chap-secret.yaml`, `examples/storageclass-nvmeof-dhchap-secret.yaml`, and `examples/storageclass-encrypted-secret.yaml`.
+
+### VolumeSnapshotClass Parameters
+
+#### Detached Snapshots
+
+Set `detachedSnapshots: "true"` on a VolumeSnapshotClass to store snapshots as
+independent received datasets. This is a VolumeSnapshotClass parameter, not a
+StorageClass parameter, and requires the configured
+`detachedSnapshotParentDataset` dataset root.
+
+| Parameter           | Description                                      | Values          |
+| ------------------- | ------------------------------------------------ | --------------- |
+| `detachedSnapshots` | Store snapshots as independent received datasets | `true`, `false` |
 
 ## Examples
 
