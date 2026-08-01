@@ -387,8 +387,8 @@ The OpenShift installation command is shown above; set `openshift.enabled=true` 
 
 ## Contributing
 
-- Report issues: https://github.com/truenas/truenas-csi/issues
-- Submit pull requests: https://github.com/truenas/truenas-csi/pulls
+- Report issues: https://github.com/ishioni/ix-csi/issues
+- Submit pull requests: https://github.com/ishioni/ix-csi/pulls
 
 ## License
 
