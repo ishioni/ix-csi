@@ -145,16 +145,16 @@ sudo systemctl enable microk8s-mount-propagation
 
 ### Driver Configuration (ConfigMap)
 
-| Setting                              | Description                                                | Example                        |
-| ------------------------------------ | ---------------------------------------------------------- | ------------------------------ |
-| `truenasURL`                         | WebSocket URL to TrueNAS API                               | `wss://10.0.0.100/api/current` |
-| `truenasInsecure`                    | Skip TLS verification                                      | `true` (for self-signed certs) |
-| `defaultPool`                        | Default ZFS pool for volumes                               | `tank`                         |
-| `nfsServer`                          | NFS server address                                         | `10.0.0.100`                   |
-| `iscsiPortal`                        | iSCSI portal address                                       | `10.0.0.100:3260`              |
-| `nvmeofPortal`                       | NVMe-oF portal address (optional; auto-derived)            | `10.0.0.100:4420`              |
-| `iscsiIQNBase`                       | Base IQN for iSCSI targets                                 | `iqn.2024-01.com.example`      |
-| `detachedSnapshotParentDataset`     | Dataset root for independent snapshots and detached clones | `tank/csi-detached`            |
+| Setting                         | Description                                                | Example                        |
+| ------------------------------- | ---------------------------------------------------------- | ------------------------------ |
+| `truenasURL`                    | WebSocket URL to TrueNAS API                               | `wss://10.0.0.100/api/current` |
+| `truenasInsecure`               | Skip TLS verification                                      | `true` (for self-signed certs) |
+| `defaultPool`                   | Default ZFS pool for volumes                               | `tank`                         |
+| `nfsServer`                     | NFS server address                                         | `10.0.0.100`                   |
+| `iscsiPortal`                   | iSCSI portal address                                       | `10.0.0.100:3260`              |
+| `nvmeofPortal`                  | NVMe-oF portal address (optional; auto-derived)            | `10.0.0.100:4420`              |
+| `iscsiIQNBase`                  | Base IQN for iSCSI targets                                 | `iqn.2024-01.com.example`      |
+| `detachedSnapshotParentDataset` | Dataset root for independent snapshots and detached clones | `tank/csi-detached`            |
 
 ### StorageClass Parameters
 
