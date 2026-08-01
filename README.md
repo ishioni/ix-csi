@@ -380,14 +380,6 @@ helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
   --set-string image.repository="quay.io/truenas_solutions/truenas-csi"
 ```
 
-### OpenShift Documentation
-
-- [Installation Guide](docs/openshift/installation.md) - Detailed Helm installation steps
-- [Configuration Reference](docs/openshift/configuration.md) - Helm and StorageClass options
-- [Upgrade Guide](docs/openshift/upgrade.md) - Upgrade procedures
-- [Cluster Setup Guide](docs/openshift/cluster-setup.md) - Set up an OpenShift cluster on vSphere (agent-based install) for testing/certification
-- [Red Hat Certification Guide](docs/openshift/certification.md) - Certification process and requirements
-
 ## Demo Scripts
 
 Interactive demo scripts are provided to test the CSI driver:
@@ -399,19 +391,7 @@ Interactive demo scripts are provided to test the CSI driver:
 ./demo-simple.sh
 ```
 
-### OpenShift (CRC/OpenShift Local)
-
-```bash
-# Set environment variables
-export TRUENAS_IP=192.168.1.100
-export TRUENAS_API_KEY=your-api-key
-export TRUENAS_POOL=tank
-
-# Run the demo
-./demo-openshift.sh
-```
-
-Both demos provide interactive menus to test NFS/iSCSI provisioning, volume expansion, snapshots, and cloning.
+ The OpenShift installation command is shown above; set `openshift.enabled=true` when installing the chart.
 
 ## Contributing
 
