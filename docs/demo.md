@@ -263,10 +263,9 @@ For production use on a real Kubernetes cluster:
 4. **Use TLS** (wss://) for TrueNAS connection
 5. **Deploy**:
    ```bash
-   helm upgrade --install truenas-csi ./deploy/helm/truenas-csi \
+   helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
      --namespace truenas-csi \
      --create-namespace \
-     --set image.tag=1.2.0 \
      --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
      --set config.truenasInsecure=false \
      --set-string config.defaultPool="tank" \
