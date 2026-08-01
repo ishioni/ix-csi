@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/ishioni/ix-csi/compare/1.2.0...1.3.0) (2026-08-01)
+
+
+### Features
+
+* make Helm the primary installation method ([#7](https://github.com/ishioni/ix-csi/issues/7)) ([44abdf5](https://github.com/ishioni/ix-csi/commit/44abdf50d5709a47456538b5e702d6c9f55b6040))
+* remove the OpenShift operator ([#8](https://github.com/ishioni/ix-csi/issues/8)) ([e1e178c](https://github.com/ishioni/ix-csi/commit/e1e178ce0711c1b34e5b0d74a14f59941ce6c16e))
+
+
+### Bug Fixes
+
+* use fork image in Helm chart ([#9](https://github.com/ishioni/ix-csi/issues/9)) ([43f96e4](https://github.com/ishioni/ix-csi/commit/43f96e4846be6d5467e9961826a0dd3d52ee6162))
+
+
+### Documentation
+
+* replace upstream repository URLs ([#11](https://github.com/ishioni/ix-csi/issues/11)) ([1326948](https://github.com/ishioni/ix-csi/commit/1326948b284c99d9c706f3585fe83de3da08ece4))
+* use OCI chart in production demo ([4084975](https://github.com/ishioni/ix-csi/commit/4084975faaa784579f4300a886890f59368b3d32))
+
 ## [1.2.0](https://github.com/ishioni/ix-csi/compare/v1.1.2...1.2.0) (2026-08-01)
 
 
