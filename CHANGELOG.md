@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/ishioni/ix-csi/compare/1.3.0...1.3.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* load NVMe modules in host namespace ([#12](https://github.com/ishioni/ix-csi/issues/12)) ([397b355](https://github.com/ishioni/ix-csi/commit/397b355500c9bd418d170e7d486961ea5b360d81))
+
 ## [1.3.0](https://github.com/ishioni/ix-csi/compare/1.2.0...1.3.0) (2026-08-01)
 
 
