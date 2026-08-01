@@ -21,3 +21,6 @@ data:
   {{- if .Values.config.iscsiIQNBase }}
   TRUENAS_ISCSI_IQN_BASE: {{ .Values.config.iscsiIQNBase | quote }}
   {{- end }}
+  {{- if .Values.config.detachedSnapshotParentDataset }}
+  TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET: {{ .Values.config.detachedSnapshotParentDataset | quote }}
+  {{- end }}

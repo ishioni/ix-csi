@@ -142,6 +142,10 @@ func loadEnvConfig(config *driver.DriverConfig) error {
 		config.ISCSIIQNBase = val
 	}
 
+	if val := os.Getenv("TRUENAS_DETACHED_SNAPSHOT_PARENT_DATASET"); val != "" {
+		config.DetachedSnapshotParentDataset = val
+	}
+
 	if val := os.Getenv("TRUENAS_INSECURE_SKIP_VERIFY"); val != "" {
 		if insecure, err := strconv.ParseBool(val); err == nil {
 			config.TrueNASInsecure = insecure

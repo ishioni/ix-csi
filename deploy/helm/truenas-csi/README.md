@@ -25,6 +25,7 @@ Kubernetes: `>=1.26.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | config.defaultPool | string | `"tank"` |  |
+| config.detachedSnapshotParentDataset | string | `""` |  |
 | config.iscsiIQNBase | string | `"iqn.2000-01.io.truenas"` |  |
 | config.iscsiPortal | string | `""` |  |
 | config.nfsServer | string | `""` |  |

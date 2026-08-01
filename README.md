@@ -145,28 +145,30 @@ sudo systemctl enable microk8s-mount-propagation
 
 ### Driver Configuration (ConfigMap)
 
-| Setting           | Description                                     | Example                        |
-| ----------------- | ----------------------------------------------- | ------------------------------ |
-| `truenasURL`      | WebSocket URL to TrueNAS API                    | `wss://10.0.0.100/api/current` |
-| `truenasInsecure` | Skip TLS verification                           | `true` (for self-signed certs) |
-| `defaultPool`     | Default ZFS pool for volumes                    | `tank`                         |
-| `nfsServer`       | NFS server address                              | `10.0.0.100`                   |
-| `iscsiPortal`     | iSCSI portal address                            | `10.0.0.100:3260`              |
-| `nvmeofPortal`    | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420`              |
-| `iscsiIQNBase`    | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
+| Setting                         | Description                                     | Example                        |
+| ------------------------------- | ----------------------------------------------- | ------------------------------ |
+| `truenasURL`                    | WebSocket URL to TrueNAS API                    | `wss://10.0.0.100/api/current` |
+| `truenasInsecure`               | Skip TLS verification                           | `true` (for self-signed certs) |
+| `defaultPool`                   | Default ZFS pool for volumes                    | `tank`                         |
+| `nfsServer`                     | NFS server address                              | `10.0.0.100`                   |
+| `iscsiPortal`                   | iSCSI portal address                            | `10.0.0.100:3260`              |
+| `nvmeofPortal`                  | NVMe-oF portal address (optional; auto-derived) | `10.0.0.100:4420`              |
+| `iscsiIQNBase`                  | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
+| `detachedSnapshotParentDataset` | Dataset root for independent snapshots          | `tank/csi-detached`            |
 
 ### StorageClass Parameters
 
 #### General Parameters
 
-| Parameter     | Description                                                                                                                                                                                                                          | Values                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `protocol`    | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
-| `pool`        | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
-| `datasetPath` | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
-| `compression` | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
-| `sync`        | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
-| `sparse`      | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+| Parameter         | Description                                                                                                                                                                                                                          | Values                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `protocol`        | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
+| `pool`            | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
+| `datasetPath`     | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
+| `compression`     | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
+| `sync`            | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
+| `sparse`          | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+| `detachedVolumes` | Create an independent volume from a snapshot or another volume using replication                                                                                                                                                     | `true`, `false`                                             |
 
 Delete-time behavior (optional): `forceDelete` (`true`/`false`) forces removal of
 busy resources; `deleteExtentsWithTarget` (`true`/`false`, default `true`) removes
@@ -257,6 +259,19 @@ Sensitive parameters can be supplied from a Kubernetes Secret instead of inline 
 | NVMe-oF DH-CHAP connection (node)              | `csi.storage.k8s.io/node-stage-secret-name` / `-namespace`  | `nvmeof.dhchapKey`, `nvmeof.dhchapCtrlKey`                                                 |
 
 iSCSI CHAP and NVMe-oF DH-CHAP each use both a provisioner-secret (to configure TrueNAS: the CHAP auth group / the nvmet host) and a node-stage-secret (for the node's login/connection); the same Secret can serve both roles. The controller ServiceAccount is granted `get`/`list`/`watch` on `secrets` so the external-provisioner can resolve the provisioner-secret; node-stage secrets are resolved by kubelet. See `examples/storageclass-iscsi-chap-secret.yaml`, `examples/storageclass-nvmeof-dhchap-secret.yaml`, and `examples/storageclass-encrypted-secret.yaml`.
+
+### VolumeSnapshotClass Parameters
+
+#### Detached Snapshots
+
+Set `detachedSnapshots: "true"` on a VolumeSnapshotClass to store snapshots as
+independent received datasets. This is a VolumeSnapshotClass parameter, not a
+StorageClass parameter, and requires the configured
+`detachedSnapshotParentDataset` dataset root.
+
+| Parameter           | Description                                      | Values          |
+| ------------------- | ------------------------------------------------ | --------------- |
+| `detachedSnapshots` | Store snapshots as independent received datasets | `true`, `false` |
 
 ## Examples
 

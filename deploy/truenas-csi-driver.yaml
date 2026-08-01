@@ -170,6 +170,7 @@ data:
   iscsiPortal: "YOUR-TRUENAS-IP:3260"
   nvmeofPortal: "YOUR-TRUENAS-IP:4420" # Optional: NVMe-oF portal; auto-derived from truenasURL host if omitted
   iscsiIQNBase: "iqn.2000-01.io.truenas" # Optional: Custom IQN prefix (default: iqn.2000-01.io.truenas)
+  detachedSnapshotParentDataset: "" # Required for detached snapshots; keep separate from normal volumes
 
 ---
 # Controller Deployment

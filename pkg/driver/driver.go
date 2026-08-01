@@ -215,11 +215,12 @@ type Driver struct {
 	log    logr.Logger
 	client *client.Client
 
-	defaultPool   string
-	nfsServer     string
-	iscsiPortal   string
-	iscsiPortalID int
-	iscsiIQNBase  string
+	defaultPool                   string
+	detachedSnapshotParentDataset string
+	nfsServer                     string
+	iscsiPortal                   string
+	iscsiPortalID                 int
+	iscsiIQNBase                  string
 	// iscsiBasename is the appliance's iSCSI global basename, read from TrueNAS
 	// and cached. TrueNAS advertises every target as <basename>:<target-name>, so
 	// this is authoritative over iscsiIQNBase (which is only a fallback). Empty
@@ -276,11 +277,12 @@ type DriverConfig struct {
 	TrueNASAPIKey   string
 	TrueNASInsecure bool
 
-	DefaultPool  string
-	NFSServer    string
-	ISCSIPortal  string
-	ISCSIIQNBase string
-	NVMeOFPortal string
+	DefaultPool                   string
+	DetachedSnapshotParentDataset string
+	NFSServer                     string
+	ISCSIPortal                   string
+	ISCSIIQNBase                  string
+	NVMeOFPortal                  string
 
 	// Logger is the structured logger for the driver and client.
 	// If not set, logging for the client will be disabled.
@@ -456,21 +458,22 @@ func NewDriver(config *DriverConfig) (*Driver, error) {
 	log.V(LogLevelInfo).Info("Initializing driver", "mode", mode)
 
 	d := &Driver{
-		name:          config.DriverName,
-		version:       config.DriverVersion,
-		nodeID:        config.NodeID,
-		endpoint:      config.Endpoint,
-		log:           log,
-		client:        truenasClient,
-		defaultPool:   config.DefaultPool,
-		nfsServer:     config.NFSServer,
-		iscsiPortal:   config.ISCSIPortal,
-		iscsiPortalID: iscsiPortalID,
-		iscsiIQNBase:  config.ISCSIIQNBase,
-		iscsiBasename: iscsiBasename,
-		nvmeofPortal:  config.NVMeOFPortal,
-		nvmeofPortID:  nvmeofPortID,
-		nvmeBaseNQN:   nvmeBaseNQN,
+		name:                          config.DriverName,
+		version:                       config.DriverVersion,
+		nodeID:                        config.NodeID,
+		endpoint:                      config.Endpoint,
+		log:                           log,
+		client:                        truenasClient,
+		defaultPool:                   config.DefaultPool,
+		detachedSnapshotParentDataset: config.DetachedSnapshotParentDataset,
+		nfsServer:                     config.NFSServer,
+		iscsiPortal:                   config.ISCSIPortal,
+		iscsiPortalID:                 iscsiPortalID,
+		iscsiIQNBase:                  config.ISCSIIQNBase,
+		iscsiBasename:                 iscsiBasename,
+		nvmeofPortal:                  config.NVMeOFPortal,
+		nvmeofPortID:                  nvmeofPortID,
+		nvmeBaseNQN:                   nvmeBaseNQN,
 	}
 
 	d.initializeCapabilities()
@@ -948,6 +951,12 @@ func resolveOrCreateNVMePort(ctx context.Context, c *client.Client, addr string,
 // DefaultPool returns the default storage pool
 func (d *Driver) DefaultPool() string {
 	return d.defaultPool
+}
+
+// DetachedSnapshotParentDataset returns the dataset root used for
+// detached snapshots.
+func (d *Driver) DetachedSnapshotParentDataset() string {
+	return d.detachedSnapshotParentDataset
 }
 
 // resolveISCSIBasename returns the appliance's iSCSI global basename, querying

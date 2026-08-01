@@ -73,23 +73,25 @@ const (
 
 // Dataset represents a ZFS dataset in TrueNAS.
 type Dataset struct {
-	ID              string         `json:"id"`
-	Name            string         `json:"name"`
-	Pool            string         `json:"pool"`
-	Type            string         `json:"type"`
-	Mountpoint      string         `json:"mountpoint"`
-	Used            int64          `json:"used"`
-	Available       int64          `json:"available"`
-	RefQuota        int64          `json:"refquota"`
-	RefReservation  int64          `json:"refreservation"`
-	Volsize         int64          `json:"volsize"`       // For ZVOLs (iSCSI volumes)
-	Compression     any            `json:"compression"`   // Can be string or object in TrueNAS
-	Deduplication   any            `json:"deduplication"` // Can be string or object in TrueNAS
-	Sync            any            `json:"sync"`          // Can be string or object in TrueNAS
-	RecordSize      any            `json:"recordsize"`    // Can be string or object in TrueNAS
-	ACLMode         any            `json:"aclmode"`       // Can be string or object in TrueNAS
-	ACLType         any            `json:"acltype"`       // Can be string or object in TrueNAS
-	ExtraProperties map[string]any `json:"extra_properties,omitempty"`
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Pool            string            `json:"pool"`
+	Type            string            `json:"type"`
+	Mountpoint      string            `json:"mountpoint"`
+	Comments        string            `json:"comments"`
+	UserProperties  map[string]string `json:"user_properties,omitempty"`
+	Used            int64             `json:"used"`
+	Available       int64             `json:"available"`
+	RefQuota        int64             `json:"refquota"`
+	RefReservation  int64             `json:"refreservation"`
+	Volsize         int64             `json:"volsize"`       // For ZVOLs (iSCSI volumes)
+	Compression     any               `json:"compression"`   // Can be string or object in TrueNAS
+	Deduplication   any               `json:"deduplication"` // Can be string or object in TrueNAS
+	Sync            any               `json:"sync"`          // Can be string or object in TrueNAS
+	RecordSize      any               `json:"recordsize"`    // Can be string or object in TrueNAS
+	ACLMode         any               `json:"aclmode"`       // Can be string or object in TrueNAS
+	ACLType         any               `json:"acltype"`       // Can be string or object in TrueNAS
+	ExtraProperties map[string]any    `json:"extra_properties,omitempty"`
 }
 
 // DatasetCreateOptions specifies options for creating a dataset.
@@ -167,7 +169,8 @@ type DatasetQueryOptions struct {
 
 // DatasetGetExtraOptions specifies extra properties to retrieve for datasets.
 type DatasetGetExtraOptions struct {
-	Properties []string `json:"properties"`
+	Properties        []string `json:"properties"`
+	RetrieveUserProps bool     `json:"retrieve_user_props,omitempty"`
 }
 
 // DatasetDeleteOptions specifies options for deleting a dataset.
@@ -508,7 +511,8 @@ func (c *Client) GetDataset(ctx context.Context, path string) (*Dataset, error) 
 	// An empty Properties list tells TrueNAS to not return extra properties
 	options := &DatasetQueryOptions{
 		Extra: DatasetGetExtraOptions{
-			Properties: []string{"refquota", "volsize", "refreservation"},
+			Properties:        []string{"refquota", "volsize", "refreservation"},
+			RetrieveUserProps: true,
 		},
 	}
 
@@ -586,11 +590,20 @@ func parseDatasetResponse(result map[string]any) *Dataset {
 		Pool:           getString(result, "pool"),
 		Type:           getString(result, "type"),
 		Mountpoint:     getString(result, "mountpoint"),
+		Comments:       getString(result, "comments"),
 		Used:           getParsedInt64(result, "used"),
 		Available:      getParsedInt64(result, "available"),
 		RefQuota:       refQuota,
 		RefReservation: getParsedInt64(result, "refreservation"),
 		Volsize:        volsize,
+	}
+	if userProperties, ok := result["user_properties"].(map[string]any); ok {
+		dataset.UserProperties = make(map[string]string, len(userProperties))
+		for key, value := range userProperties {
+			if value, ok := value.(string); ok {
+				dataset.UserProperties[key] = value
+			}
+		}
 	}
 
 	// Store raw property objects for fields that can vary in type
@@ -626,9 +639,10 @@ func (c *Client) ListDatasets(ctx context.Context, pool string) ([]Dataset, erro
 
 	options := map[string]any{
 		"extra": map[string]any{
-			"flat":              true,
-			"retrieve_children": false,
-			"properties":        []string{"type", "used", "available", "refquota", "volsize", "refreservation"},
+			"flat":                true,
+			"retrieve_children":   false,
+			"retrieve_user_props": true,
+			"properties":          []string{"type", "used", "available", "refquota", "volsize", "refreservation", "comments"},
 		},
 	}
 
