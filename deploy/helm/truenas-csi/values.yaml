@@ -2,7 +2,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: ghcr.io/truenas/truenas-csi
+  repository: ghcr.io/ishioni/ix-csi
   tag: ""
   pullPolicy: IfNotPresent
   pullSecrets: []
