@@ -34,6 +34,10 @@ Before running the demo, ensure you have the following:
   - Installation: https://kubernetes.io/docs/tasks/tools/
   - Verify: `kubectl version --client`
 
+- **Helm**: Used to install the CSI driver
+  - Installation: https://helm.sh/docs/intro/install/
+  - Verify: `helm version`
+
 ### 2. TrueNAS System
 
 - **Version**: TrueNAS SCALE (tested with v25.10+)
@@ -45,72 +49,37 @@ Before running the demo, ensure you have the following:
 
 ## Configuration
 
-### Step 1: Edit the Deployment YAML
+### Step 1: Configure TrueNAS connection details
 
-Before running the demo, configure your TrueNAS connection details:
+Set the variables consumed by the demo's Helm installation:
 
 ```bash
-# Edit the deployment file
-deploy/truenas-csi-driver.yaml
+export TRUENAS_URL="wss://YOUR_TRUENAS_IP/api/current"
+export TRUENAS_INSECURE=true
+export TRUENAS_POOL=tank
+export TRUENAS_NFS_SERVER="YOUR_TRUENAS_IP"
+export TRUENAS_ISCSI_PORTAL="YOUR_TRUENAS_IP:3260"
+export TRUENAS_ISCSI_IQN_BASE="iqn.2000-01.io.truenas"
 ```
 
-### Step 2: Configure TrueNAS Connection
+TrueNAS API keys should be used over a secure WebSocket connection (`wss://`). Set `TRUENAS_INSECURE=true` for a self-signed certificate.
 
-Update the **ConfigMap** section with your TrueNAS details:
+### Step 2: Configure API key authentication
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: truenas-csi-config
-  namespace: truenas-csi
-data:
-  truenasURL: "wss://YOUR_TRUENAS_IP/api/current" # Use wss:// for secure connection
-  truenasInsecure: "true" # Set to "true" for self-signed certs
-  defaultPool: "tank" # Change to your pool name
-  nfsServer: "YOUR_TRUENAS_IP" # Change to your TrueNAS IP
-  iscsiPortal: "YOUR_TRUENAS_IP:3260" # Change to your TrueNAS IP
-  iscsiIQNBase: "iqn.2000-01.io.truenas" # Optional: customize for your org
-```
+Get your API key from TrueNAS:
 
-**Example:**
+- Log into TrueNAS web UI
+- Click your profile icon → API Keys
+- Click Add → Create new key
+- Copy the generated key
 
-```yaml
-data:
-  truenasURL: "wss://10.0.0.136/api/current" # Secure WebSocket (wss://)
-  truenasInsecure: "true" # Allow self-signed certificate
-  defaultPool: "tank"
-  nfsServer: "10.0.0.136"
-  iscsiPortal: "10.0.0.136:3260"
-  iscsiIQNBase: "iqn.2024-01.com.acmecorp" # Optional: use your company domain
-```
-
-**Note:** TrueNAS requires API keys to be used over secure connections (wss://) for security. Set `truenasInsecure: "true"` if using self-signed certificates.
-
-### Step 3: Configure API Key Authentication
-
-1. **Get your API key** from TrueNAS:
-   - Log into TrueNAS web UI
-   - Click your profile icon → API Keys
-   - Click Add → Create new key
-   - Copy the generated key
-
-2. **Update the Secret** in `deploy/truenas-csi-driver.yaml`:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: truenas-api-credentials
-  namespace: truenas-csi
-type: Opaque
-stringData:
-  api-key: "1-YOUR_ACTUAL_API_KEY_HERE"
+```bash
+export TRUENAS_API_KEY="YOUR-API-KEY"
 ```
 
 ## Running the Demo
 
-Once you've configured the YAML file:
+Once you've configured the environment variables:
 
 ```bash
 chmod +x ./demo-simple.sh
@@ -122,11 +91,11 @@ chmod +x ./demo-simple.sh
 The script will:
 
 1. ✅ Verify prerequisites are installed
-2. ✅ Confirm you've configured the YAML file
+2. ✅ Confirm your TrueNAS environment variables are set
 3. ✅ Create a Kind cluster with 2 worker nodes
 4. ✅ Build the CSI driver Docker image
 5. ✅ Load the image into the cluster
-6. ✅ Deploy the driver using your configuration
+6. ✅ Install the driver with the local Helm chart
 7. ✅ Set up snapshot support
 8. ✅ Create StorageClasses for NFS and iSCSI
 9. ✅ Launch the interactive demo menu
@@ -216,30 +185,27 @@ parameters:
 
 The driver uses secure WebSocket (wss://) by default. For self-signed certificates:
 
-```yaml
-data:
-  truenasURL: "wss://10.0.0.136/api/current"
-  truenasInsecure: "true" # Skip certificate validation for self-signed certs
+```bash
+export TRUENAS_URL="wss://10.0.0.136/api/current"
+export TRUENAS_INSECURE=true
 ```
 
 **For production with valid certificates**, set to `"false"` or remove the field:
 
-```yaml
-data:
-  truenasURL: "wss://truenas.example.com/api/current"
-  truenasInsecure: "false" # Validate certificate
+```bash
+export TRUENAS_URL="wss://truenas.example.com/api/current"
+export TRUENAS_INSECURE=false
 ```
 
 ## Troubleshooting
 
-### "Have you configured deploy/truenas-csi-driver.yaml?"
+### "TRUENAS_API_KEY is not set"
 
-The demo requires you to edit the YAML file first. If you see this message:
+The demo requires TrueNAS connection details and an API key before it can install the Helm chart:
 
-1. Edit `deploy/truenas-csi-driver.yaml`
-2. Update ConfigMap with your TrueNAS IP and pool
-3. Update Secret with your credentials
-4. Run the demo again
+1. Set `TRUENAS_URL`, `TRUENAS_POOL`, and `TRUENAS_API_KEY`
+2. Set `TRUENAS_NFS_SERVER` and `TRUENAS_ISCSI_PORTAL` if those protocols are used
+3. Run the demo again
 
 ### "Failed to create driver: invalid iSCSI IQN base format"
 
@@ -262,7 +228,7 @@ Your `iscsiIQNBase` in the ConfigMap has an invalid format. It must:
 Check driver logs from the menu (Option 14) or:
 
 ```bash
-kubectl logs -n truenas-csi -l app=truenas-csi-controller -c csi-controller
+kubectl logs -n truenas-csi -l app.kubernetes.io/component=controller -c csi-controller
 ```
 
 Common causes:
@@ -291,14 +257,20 @@ This removes the cluster and all associated resources. TrueNAS datasets/shares w
 
 For production use on a real Kubernetes cluster:
 
-1. **Edit the deployment YAML** with your production settings
-2. **Update image tag** from `demo` to `latest` or a specific version
-3. **Change imagePullPolicy** from `IfNotPresent` to `Always`
-4. **Configure proper IQN prefix** for your organization
-5. **Use TLS** (wss://) for TrueNAS connection
-6. **Deploy**:
+1. **Configure the Helm values** for your production settings
+2. **Use a specific image tag** rather than `latest`
+3. **Configure proper IQN prefix** for your organization
+4. **Use TLS** (wss://) for TrueNAS connection
+5. **Deploy**:
    ```bash
-   kubectl apply -f deploy/truenas-csi-driver.yaml
+   helm upgrade --install truenas-csi ./deploy/helm/truenas-csi \
+     --namespace truenas-csi \
+     --create-namespace \
+     --set image.tag=1.2.0 \
+     --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
+     --set config.truenasInsecure=false \
+     --set-string config.defaultPool="tank" \
+     --set-string secret.apiKey="YOUR-API-KEY"
    ```
 
 ## Getting Help
