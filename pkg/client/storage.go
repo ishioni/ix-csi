@@ -169,7 +169,8 @@ type DatasetQueryOptions struct {
 
 // DatasetGetExtraOptions specifies extra properties to retrieve for datasets.
 type DatasetGetExtraOptions struct {
-	Properties []string `json:"properties"`
+	Properties        []string `json:"properties"`
+	RetrieveUserProps bool     `json:"retrieve_user_props,omitempty"`
 }
 
 // DatasetDeleteOptions specifies options for deleting a dataset.
@@ -510,7 +511,8 @@ func (c *Client) GetDataset(ctx context.Context, path string) (*Dataset, error) 
 	// An empty Properties list tells TrueNAS to not return extra properties
 	options := &DatasetQueryOptions{
 		Extra: DatasetGetExtraOptions{
-			Properties: []string{"refquota", "volsize", "refreservation"},
+			Properties:        []string{"refquota", "volsize", "refreservation"},
+			RetrieveUserProps: true,
 		},
 	}
 

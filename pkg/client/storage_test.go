@@ -170,6 +170,32 @@ func TestGetDataset_Success(t *testing.T) {
 	assertEqual(t, dataset.RefQuota, int64(50000))
 }
 
+func TestGetDataset_UserProperties(t *testing.T) {
+	mock := NewMockTrueNASServer()
+	defer mock.Close()
+
+	result := MockDataset("tank/detached/source/snapshot", "snapshot", "tank", 2000, 8000, 50000)
+	result["user_properties"] = map[string]string{
+		"truenas-csi:detached_snapshot": "true",
+	}
+	mock.SetResponse(methodDatasetGet, MockResponse{Result: result})
+
+	client := connectTestClient(t, mock)
+	dataset, err := client.GetDataset(testContext(t), "tank/detached/source/snapshot")
+
+	assertNoError(t, err)
+	assertNotNil(t, dataset)
+	assertEqual(t, dataset.UserProperties["truenas-csi:detached_snapshot"], "true")
+
+	requests := mock.GetRequestsByMethod(methodDatasetGet)
+	assertLen(t, requests, 1)
+	var params []any
+	assertNoError(t, json.Unmarshal(requests[0].Params, &params))
+	options := params[1].(map[string]any)
+	extra := options["extra"].(map[string]any)
+	assertTrue(t, extra["retrieve_user_props"].(bool))
+}
+
 func TestGetDataset_NotFound(t *testing.T) {
 	mock := NewMockTrueNASServer()
 	defer mock.Close()

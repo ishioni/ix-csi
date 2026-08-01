@@ -289,11 +289,15 @@ func (s *ControllerServer) cloneDetachedSnapshot(ctx context.Context, snapshotID
 	if err != nil {
 		return err
 	}
-	if _, err := s.driver.Client().GetDataset(ctx, sourceDataset); err != nil {
+	dataset, err := s.driver.Client().GetDataset(ctx, sourceDataset)
+	if err != nil {
 		if client.IsNotFoundError(err) {
 			return fmt.Errorf("detached source snapshot %s was not found", snapshotID)
 		}
 		return err
+	}
+	if !isDetachedSnapshotDataset(dataset) {
+		return fmt.Errorf("detached source snapshot %s is not managed by ix-csi", snapshotID)
 	}
 	tempName := detachedVolumeSourcePrefix + SanitizeVolumeName(strings.ReplaceAll(sourceVolumeID, "/", "-"))
 	tempSnapshotID, err := s.createTemporarySnapshot(ctx, sourceDataset, tempName)
@@ -327,8 +331,8 @@ func (s *ControllerServer) createDetachedSnapshot(ctx context.Context, sourceVol
 	}
 
 	if existing, err := s.driver.Client().GetDataset(ctx, targetDataset); err == nil && existing != nil {
-		if err := s.markDetachedSnapshot(ctx, targetDataset); err != nil {
-			return "", fmt.Errorf("failed to mark existing detached snapshot: %w", err)
+		if !isDetachedSnapshotDataset(existing) {
+			return "", fmt.Errorf("detached snapshot target %s already exists and is not managed by ix-csi", targetDataset)
 		}
 		return detachedID, nil
 	} else if err != nil && !client.IsNotFoundError(err) {
@@ -380,6 +384,10 @@ func (s *ControllerServer) markDetachedSnapshot(ctx context.Context, datasetPath
 	})
 }
 
+func isDetachedSnapshotDataset(dataset *client.Dataset) bool {
+	return dataset != nil && dataset.UserProperties[detachedSnapshotProperty] == detachedSnapshotPropertyValue
+}
+
 func datasetPathForEntry(dataset client.Dataset) string {
 	if dataset.ID != "" {
 		return dataset.ID
@@ -403,7 +411,7 @@ func (s *ControllerServer) listDetachedSnapshots(ctx context.Context, sourceVolu
 
 	result := make([]detachedSnapshotInfo, 0)
 	for _, dataset := range datasets {
-		if dataset.UserProperties[detachedSnapshotProperty] != detachedSnapshotPropertyValue {
+		if !isDetachedSnapshotDataset(&dataset) {
 			continue
 		}
 		fullPath := datasetPathForEntry(dataset)

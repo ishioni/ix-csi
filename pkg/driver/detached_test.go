@@ -1,6 +1,10 @@
 package driver
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/truenas/truenas-csi/pkg/client"
+)
 
 func TestDetachedBoolParameter(t *testing.T) {
 	for _, test := range []struct {
@@ -66,5 +70,28 @@ func TestDetachedSnapshotDataset(t *testing.T) {
 	}
 	if want := "tank/csi-detached/tank/volumes/pvc-a/daily"; dataset != want {
 		t.Fatalf("detachedSnapshotDataset = %q, want %q", dataset, want)
+	}
+}
+
+func TestIsDetachedSnapshotDataset(t *testing.T) {
+	if isDetachedSnapshotDataset(nil) {
+		t.Fatal("isDetachedSnapshotDataset(nil) = true")
+	}
+
+	for _, test := range []struct {
+		name       string
+		properties map[string]string
+		want       bool
+	}{
+		{name: "unmarked", properties: nil, want: false},
+		{name: "wrong value", properties: map[string]string{detachedSnapshotProperty: "false"}, want: false},
+		{name: "marked", properties: map[string]string{detachedSnapshotProperty: detachedSnapshotPropertyValue}, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := isDetachedSnapshotDataset(&client.Dataset{UserProperties: test.properties})
+			if got != test.want {
+				t.Fatalf("isDetachedSnapshotDataset() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }

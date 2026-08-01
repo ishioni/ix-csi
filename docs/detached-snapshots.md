@@ -34,7 +34,9 @@ the detached namespace.
 
 Detached snapshot datasets are identified with the ZFS user property
 `truenas-csi:detached_snapshot=true`. The driver does not use the TrueNAS
-dataset comments field for this metadata.
+dataset comments field for this metadata. Unmarked datasets are ignored as
+detached snapshots, and an unmarked dataset at an exact CSI-derived target
+path is rejected as a collision rather than adopted or deleted.
 
 The Helm chart exposes the same setting as
 `config.detachedSnapshotParentDataset`. The setting is optional until one

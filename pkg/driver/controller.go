@@ -2211,11 +2211,15 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			s.driver.Log().V(LogLevelDebug).Info("Invalid detached snapshot ID, treating as already deleted", "snapshotId", req.SnapshotId, "error", parseErr)
 			return &csi.DeleteSnapshotResponse{}, nil
 		}
-		if _, err = s.driver.Client().GetDataset(ctx, targetDataset); err != nil {
-			if client.IsNotFoundError(err) {
+		dataset, getErr := s.driver.Client().GetDataset(ctx, targetDataset)
+		if getErr != nil {
+			if client.IsNotFoundError(getErr) {
 				return &csi.DeleteSnapshotResponse{}, nil
 			}
-			return nil, status.Errorf(codes.Internal, "failed to find detached snapshot: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to find detached snapshot: %v", getErr)
+		}
+		if !isDetachedSnapshotDataset(dataset) {
+			return nil, status.Errorf(codes.FailedPrecondition, "dataset %s is not an ix-csi detached snapshot", targetDataset)
 		}
 		err = s.driver.Client().DeleteDataset(ctx, targetDataset, &client.DatasetDeleteOptions{Recursive: true, Force: true})
 		if err != nil && !client.IsNotFoundError(err) {
@@ -2278,6 +2282,9 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					return &csi.ListSnapshotsResponse{Entries: entries}, nil
 				}
 				return nil, status.Errorf(codes.Internal, "failed to get detached snapshot: %v", getErr)
+			}
+			if !isDetachedSnapshotDataset(dataset) {
+				return &csi.ListSnapshotsResponse{Entries: entries}, nil
 			}
 			entries = append(entries, &csi.ListSnapshotsResponse_Entry{Snapshot: &csi.Snapshot{
 				SnapshotId:     req.SnapshotId,
