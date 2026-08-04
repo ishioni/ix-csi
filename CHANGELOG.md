@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/ishioni/ix-csi/compare/1.3.2...1.3.3) (2026-08-04)
+
+
+### Bug Fixes
+
+* preserve snapshot ownership properties ([#16](https://github.com/ishioni/ix-csi/issues/16)) ([9af07c6](https://github.com/ishioni/ix-csi/commit/9af07c6fe0fef51ba221786ccc2a16db4d5a994c))
+
 ## [1.3.2](https://github.com/ishioni/ix-csi/compare/1.3.1...1.3.2) (2026-08-04)
 
 
