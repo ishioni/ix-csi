@@ -1155,11 +1155,10 @@ func (c *Client) ListSnapshots(ctx context.Context, dataset string) ([]Snapshot,
 	filters := [][]any{
 		{"dataset", "=", dataset},
 	}
-	options := &QueryOptions{
-		Extra: map[string]any{
-			"properties": []string{"truenas-csi:managed"},
-		},
-	}
+	// Use the default property query. TrueNAS 25.10 does not accept a list for
+	// extra.properties and silently returns an empty property map, which hides
+	// the CSI ownership marker used to protect source volumes.
+	options := &QueryOptions{}
 
 	var snapshots []Snapshot
 	err := c.Call(ctx, methodSnapshotQuery, []any{filters, options}, &snapshots)

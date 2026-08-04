@@ -1019,9 +1019,13 @@ func TestListSnapshots_Success(t *testing.T) {
 	mock := NewMockTrueNASServer()
 	defer mock.Close()
 
+	managedSnapshot := MockSnapshot("tank/data@snap1", "tank/data", "snap1")
+	managedSnapshot.Properties = map[string]any{
+		"truenas-csi:managed": map[string]any{"value": "true"},
+	}
 	mock.SetResponse(methodSnapshotQuery, MockResponse{
 		Result: []Snapshot{
-			MockSnapshot("tank/data@snap1", "tank/data", "snap1"),
+			managedSnapshot,
 			MockSnapshot("tank/data@snap2", "tank/data", "snap2"),
 		},
 	})
@@ -1034,15 +1038,17 @@ func TestListSnapshots_Success(t *testing.T) {
 	assertLen(t, snapshots, 2)
 	assertEqual(t, snapshots[0].Name, "snap1")
 	assertEqual(t, snapshots[1].Name, "snap2")
+	property := snapshots[0].Properties["truenas-csi:managed"].(map[string]any)
+	assertEqual(t, property["value"].(string), "true")
 
 	requests := mock.GetRequestsByMethod(methodSnapshotQuery)
 	assertLen(t, requests, 1)
 	var params []any
 	json.Unmarshal(requests[0].Params, &params)
 	opts := params[1].(map[string]any)
-	extra := opts["extra"].(map[string]any)
-	properties := extra["properties"].([]any)
-	assertEqual(t, properties[0], "truenas-csi:managed")
+	if len(opts) != 0 {
+		t.Fatalf("ListSnapshots sent unexpected query options: %v", opts)
+	}
 }
 
 func TestCloneSnapshot_Success(t *testing.T) {
