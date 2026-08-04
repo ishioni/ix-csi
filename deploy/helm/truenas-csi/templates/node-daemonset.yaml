@@ -52,7 +52,7 @@ spec:
       {{- end }}
       containers:
         - name: csi-node
-          image: {{ printf "%s:%s" .Values.image.repository (default .Chart.AppVersion .Values.image.tag) }}
+          image: {{ include "truenas-csi.image" (dict "root" . "component" .Values.node) | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           lifecycle:
             postStart:

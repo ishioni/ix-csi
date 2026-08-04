@@ -76,3 +76,21 @@ TRUENAS_API_KEY
 {{- define "truenas-csi.configMapName" -}}
 {{- printf "%s-config" (include "truenas-csi.fullname" .) -}}
 {{- end -}}
+
+{{/*
+Resolve a driver image reference. A component-specific tag or digest takes
+precedence over the chart-wide digest so controller and node PR images can be
+tested independently of the release pin.
+*/}}
+{{- define "truenas-csi.image" -}}
+{{- $componentImage := default (dict) .component.image -}}
+{{- if $componentImage.digest -}}
+{{- printf "%s@%s" .root.Values.image.repository $componentImage.digest -}}
+{{- else if $componentImage.tag -}}
+{{- printf "%s:%s" .root.Values.image.repository $componentImage.tag -}}
+{{- else if .root.Values.image.digest -}}
+{{- printf "%s@%s" .root.Values.image.repository .root.Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .root.Values.image.repository (default .root.Chart.AppVersion .root.Values.image.tag) -}}
+{{- end -}}
+{{- end -}}
