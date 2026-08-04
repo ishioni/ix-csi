@@ -363,9 +363,10 @@ type Snapshot struct {
 
 // SnapshotCreateOptions specifies options for creating a snapshot.
 type SnapshotCreateOptions struct {
-	Dataset   string `json:"dataset"`
-	Name      string `json:"name"`
-	Recursive bool   `json:"recursive"`
+	Dataset    string            `json:"dataset"`
+	Name       string            `json:"name"`
+	Recursive  bool              `json:"recursive"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // SnapshotDeleteOptions specifies options for deleting a snapshot.
@@ -1098,10 +1099,17 @@ func (c *Client) GetISCSIGlobalConfig(ctx context.Context) (*ISCSIGlobalConfig, 
 
 // CreateSnapshot creates a new ZFS snapshot.
 func (c *Client) CreateSnapshot(ctx context.Context, dataset, name string, recursive bool) (*Snapshot, error) {
+	return c.CreateSnapshotWithProperties(ctx, dataset, name, recursive, nil)
+}
+
+// CreateSnapshotWithProperties creates a new ZFS snapshot with the supplied
+// ZFS properties.
+func (c *Client) CreateSnapshotWithProperties(ctx context.Context, dataset, name string, recursive bool, properties map[string]string) (*Snapshot, error) {
 	params := &SnapshotCreateOptions{
-		Dataset:   dataset,
-		Name:      name,
-		Recursive: recursive,
+		Dataset:    dataset,
+		Name:       name,
+		Recursive:  recursive,
+		Properties: properties,
 	}
 
 	var snapshot Snapshot
@@ -1115,7 +1123,9 @@ func (c *Client) CreateSnapshot(ctx context.Context, dataset, name string, recur
 // DeleteSnapshot deletes a ZFS snapshot by name.
 func (c *Client) DeleteSnapshot(ctx context.Context, name string) error {
 	options := &SnapshotDeleteOptions{
-		Defer: false,
+		// Defer deletion when a temporary clone still depends on this
+		// snapshot. ZFS will remove it once the final clone is gone.
+		Defer: true,
 	}
 
 	err := c.Call(ctx, methodSnapshotDelete, []any{name, options}, nil)
@@ -1145,7 +1155,11 @@ func (c *Client) ListSnapshots(ctx context.Context, dataset string) ([]Snapshot,
 	filters := [][]any{
 		{"dataset", "=", dataset},
 	}
-	options := &QueryOptions{}
+	options := &QueryOptions{
+		Extra: map[string]any{
+			"properties": []string{"truenas-csi:managed"},
+		},
+	}
 
 	var snapshots []Snapshot
 	err := c.Call(ctx, methodSnapshotQuery, []any{filters, options}, &snapshots)
