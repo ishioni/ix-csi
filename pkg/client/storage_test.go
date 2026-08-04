@@ -971,6 +971,27 @@ func TestCreateSnapshot_Recursive(t *testing.T) {
 	assertTrue(t, opts["recursive"].(bool))
 }
 
+func TestCreateSnapshotWithProperties(t *testing.T) {
+	mock := NewMockTrueNASServer()
+	defer mock.Close()
+
+	mock.SetResponse(methodSnapshotCreate, MockResponse{
+		Result: MockSnapshot("tank/data@snap1", "tank/data", "snap1"),
+	})
+
+	client := connectTestClient(t, mock)
+	_, err := client.CreateSnapshotWithProperties(testContext(t), "tank/data", "snap1", false, map[string]string{"truenas-csi:managed": "true"})
+	assertNoError(t, err)
+
+	requests := mock.GetRequestsByMethod(methodSnapshotCreate)
+	assertLen(t, requests, 1)
+	var params []any
+	json.Unmarshal(requests[0].Params, &params)
+	opts := params[0].(map[string]any)
+	properties := opts["properties"].(map[string]any)
+	assertEqual(t, properties["truenas-csi:managed"], "true")
+}
+
 func TestDeleteSnapshot_Success(t *testing.T) {
 	mock := NewMockTrueNASServer()
 	defer mock.Close()
@@ -985,6 +1006,13 @@ func TestDeleteSnapshot_Success(t *testing.T) {
 
 	assertNoError(t, err)
 	assertRequestMethod(t, mock, methodSnapshotDelete)
+
+	requests := mock.GetRequestsByMethod(methodSnapshotDelete)
+	assertLen(t, requests, 1)
+	var params []any
+	json.Unmarshal(requests[0].Params, &params)
+	opts := params[1].(map[string]any)
+	assertTrue(t, opts["defer"].(bool))
 }
 
 func TestListSnapshots_Success(t *testing.T) {
@@ -1006,6 +1034,15 @@ func TestListSnapshots_Success(t *testing.T) {
 	assertLen(t, snapshots, 2)
 	assertEqual(t, snapshots[0].Name, "snap1")
 	assertEqual(t, snapshots[1].Name, "snap2")
+
+	requests := mock.GetRequestsByMethod(methodSnapshotQuery)
+	assertLen(t, requests, 1)
+	var params []any
+	json.Unmarshal(requests[0].Params, &params)
+	opts := params[1].(map[string]any)
+	extra := opts["extra"].(map[string]any)
+	properties := extra["properties"].([]any)
+	assertEqual(t, properties[0], "truenas-csi:managed")
 }
 
 func TestCloneSnapshot_Success(t *testing.T) {

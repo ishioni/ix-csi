@@ -66,6 +66,12 @@ const (
 	// ZFS dataset types
 	datasetTypeFilesystem = "FILESYSTEM"
 	datasetTypeVolume     = "VOLUME"
+
+	// managedSnapshotProperty identifies CSI snapshots that must retain their
+	// source dataset, including VolumeSnapshots and temporary clone origins.
+	managedSnapshotProperty      = "truenas-csi:managed"
+	managedSnapshotPropertyValue = "true"
+	volumeCloneSnapshotPrefix    = "csi-clone-"
 )
 
 // StorageClass parameter keys
@@ -1445,8 +1451,10 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			}
 		} else {
 			sanitizedVolumeID := strings.ReplaceAll(volumeID, "/", "-")
-			snapshotName := fmt.Sprintf("csi-clone-%s-%d", sanitizedVolumeID, time.Now().Unix())
-			snapshot, err := s.driver.Client().CreateSnapshot(ctx, sourceInfo.DatasetPath, snapshotName, false)
+			snapshotName := fmt.Sprintf("%s%s-%d", volumeCloneSnapshotPrefix, sanitizedVolumeID, time.Now().Unix())
+			snapshot, err := s.driver.Client().CreateSnapshotWithProperties(ctx, sourceInfo.DatasetPath, snapshotName, false, map[string]string{
+				managedSnapshotProperty: managedSnapshotPropertyValue,
+			})
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to create snapshot for clone: %v", err)
 			}
@@ -1724,6 +1732,19 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			s.driver.Log().V(LogLevelDebug).Info("Volume already deleted", "volumeId", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
+		return nil, status.Errorf(codes.Internal, "failed to find volume: %v", err)
+	}
+
+	// CSI VolumeSnapshots and non-detached PVC clones must outlive their source
+	// volume. Do this before tearing down protocol resources so a retry can
+	// resume cleanly.
+	snapshots, err := s.driver.Client().ListSnapshots(ctx, datasetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list volume snapshots: %v", err)
+	}
+	if hasSourceDependentSnapshot(snapshots) {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"cannot delete volume %s while it has dependent Kubernetes VolumeSnapshots or non-detached volume clones", req.VolumeId)
 	}
 
 	// Get volume info for resource cleanup
@@ -1793,6 +1814,29 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	s.driver.Log().V(LogLevelDebug).Info("Volume deleted successfully", "volumeId", req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func hasSourceDependentSnapshot(snapshots []client.Snapshot) bool {
+	for _, snapshot := range snapshots {
+		// Older non-detached volume clones predate the managed property. Their
+		// private, CSI-generated snapshot names still identify the dependency.
+		if strings.HasPrefix(snapshot.Name, volumeCloneSnapshotPrefix) || strings.Contains(snapshot.ID, "@"+volumeCloneSnapshotPrefix) {
+			return true
+		}
+		property, ok := snapshot.Properties[managedSnapshotProperty]
+		if !ok {
+			continue
+		}
+		values, ok := property.(map[string]any)
+		if !ok {
+			continue
+		}
+		value, ok := values["value"].(string)
+		if ok && value == managedSnapshotPropertyValue {
+			return true
+		}
+	}
+	return false
 }
 
 // ControllerPublishVolume returns the connection info needed for node staging (portal, IQN, or NFS path).
@@ -2157,7 +2201,9 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	}
 
 	// Create the new snapshot
-	snapshot, err := s.driver.Client().CreateSnapshot(ctx, volInfo.DatasetPath, snapshotName, false)
+	snapshot, err := s.driver.Client().CreateSnapshotWithProperties(ctx, volInfo.DatasetPath, snapshotName, false, map[string]string{
+		managedSnapshotProperty: managedSnapshotPropertyValue,
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			// Snapshot with this name exists but on a different volume
@@ -2225,9 +2271,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		if client.IsNotFoundError(err) {
 			return &csi.DeleteSnapshotResponse{}, nil
 		}
-		// For other errors, also return success for idempotency
-		s.driver.Log().V(LogLevelDebug).Info("Snapshot delete error, treating as already deleted", "snapshotId", req.SnapshotId, "error", err)
-		return &csi.DeleteSnapshotResponse{}, nil
+		return nil, status.Errorf(codes.Internal, "failed to delete snapshot: %v", err)
 	}
 
 	return &csi.DeleteSnapshotResponse{}, nil
