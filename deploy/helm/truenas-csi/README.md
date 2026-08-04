@@ -36,6 +36,8 @@ Kubernetes: `>=1.26.0-0`
 | controller.extraEnv | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` |  |
 | controller.extraVolumes | list | `[]` |  |
+| controller.image.digest | string | `""` |  |
+| controller.image.tag | string | `""` |  |
 | controller.logLevel | int | `4` |  |
 | controller.nodeSelector | object | `{}` |  |
 | controller.podAnnotations | object | `{}` |  |
@@ -48,6 +50,7 @@ Kubernetes: `>=1.26.0-0`
 | controller.resources.requests.memory | string | `"128Mi"` |  |
 | controller.tolerations | list | `[]` |  |
 | fullnameOverride | string | `""` |  |
+| image.digest | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.pullSecrets | list | `[]` |  |
 | image.repository | string | `"ghcr.io/ishioni/ix-csi"` |  |
@@ -57,6 +60,8 @@ Kubernetes: `>=1.26.0-0`
 | node.extraEnv | list | `[]` |  |
 | node.extraVolumeMounts | list | `[]` |  |
 | node.extraVolumes | list | `[]` |  |
+| node.image.digest | string | `""` |  |
+| node.image.tag | string | `""` |  |
 | node.iscsiDir | string | `"/etc/iscsi"` |  |
 | node.kubeletRootDir | string | `"/var/lib/kubelet"` |  |
 | node.logLevel | int | `4` |  |

@@ -51,6 +51,8 @@ jobs:
           install_args: --locked
       - name: Lint Helm chart
         run: mise run helm-lint
+      - name: Verify Helm image resolution
+        run: mise run helm-image-test
       - name: Check generated chart files
         run: mise run generate-check
 

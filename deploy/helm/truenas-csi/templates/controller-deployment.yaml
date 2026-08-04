@@ -50,7 +50,7 @@ spec:
       {{- end }}
       containers:
         - name: csi-controller
-          image: {{ printf "%s:%s" .Values.image.repository (default .Chart.AppVersion .Values.image.tag) }}
+          image: {{ include "truenas-csi.image" (dict "root" . "component" .Values.controller) | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - --endpoint=$(CSI_ENDPOINT)

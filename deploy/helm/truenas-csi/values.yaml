@@ -3,7 +3,10 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/ishioni/ix-csi
+  # Used when no digest is set. An empty value uses the chart appVersion.
   tag: ""
+  # The release workflow sets this to pin released charts to an immutable image.
+  digest: ""
   pullPolicy: IfNotPresent
   pullSecrets: []
 
@@ -44,6 +47,10 @@ openshift:
   enabled: false
 
 controller:
+  image:
+    # Overrides the global image tag or digest for the controller only.
+    tag: ""
+    digest: ""
   replicas: 1
   priorityClassName: ""
   podAnnotations: {}
@@ -64,6 +71,10 @@ controller:
   extraVolumes: []
 
 node:
+  image:
+    # Overrides the global image tag or digest for the node only.
+    tag: ""
+    digest: ""
   priorityClassName: system-node-critical
   podAnnotations: {}
   podLabels: {}

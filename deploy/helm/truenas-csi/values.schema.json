@@ -77,6 +77,24 @@
           "title": "extraVolumes",
           "type": "array"
         },
+        "image": {
+          "properties": {
+            "digest": {
+              "default": "",
+              "title": "digest",
+              "type": "string"
+            },
+            "tag": {
+              "default": "",
+              "description": "Overrides the global image tag or digest for the controller only.",
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "image",
+          "type": "object"
+        },
         "logLevel": {
           "default": 4,
           "title": "logLevel",
@@ -173,6 +191,12 @@
     },
     "image": {
       "properties": {
+        "digest": {
+          "default": "",
+          "description": "The release workflow sets this to pin released charts to an immutable image.",
+          "title": "digest",
+          "type": "string"
+        },
         "pullPolicy": {
           "default": "IfNotPresent",
           "title": "pullPolicy",
@@ -192,6 +216,7 @@
         },
         "tag": {
           "default": "",
+          "description": "Used when no digest is set. An empty value uses the chart appVersion.",
           "title": "tag",
           "type": "string"
         }
@@ -232,6 +257,24 @@
           },
           "title": "extraVolumes",
           "type": "array"
+        },
+        "image": {
+          "properties": {
+            "digest": {
+              "default": "",
+              "title": "digest",
+              "type": "string"
+            },
+            "tag": {
+              "default": "",
+              "description": "Overrides the global image tag or digest for the node only.",
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "image",
+          "type": "object"
         },
         "iscsiDir": {
           "default": "/etc/iscsi",
