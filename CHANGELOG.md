@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/ishioni/ix-csi/compare/1.3.1...1.3.2) (2026-08-04)
+
+
+### Bug Fixes
+
+* preserve source volumes with CSI snapshots ([#14](https://github.com/ishioni/ix-csi/issues/14)) ([1710426](https://github.com/ishioni/ix-csi/commit/17104265cc1a742e94ff77346aeaf474671c352f))
+
 ## [1.3.1](https://github.com/ishioni/ix-csi/compare/1.3.0...1.3.1) (2026-08-01)
 
 
