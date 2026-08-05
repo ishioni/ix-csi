@@ -95,11 +95,6 @@
           "title": "image",
           "type": "object"
         },
-        "logLevel": {
-          "default": 4,
-          "title": "logLevel",
-          "type": "integer"
-        },
         "nodeSelector": {
           "required": [],
           "title": "nodeSelector",
@@ -225,6 +220,12 @@
       "title": "image",
       "type": "object"
     },
+    "logLevel": {
+      "default": "info",
+      "description": "Controls logging for the CSI driver and every Kubernetes sidecar.\nerror maps to --v=0, warning to --v=1, info to --v=2, and debug to --v=4.\nKubernetes logging cannot strictly filter by severity, so error and warning\nmay still include ordinary info messages emitted at the default verbosity.",
+      "title": "logLevel",
+      "type": "string"
+    },
     "nameOverride": {
       "default": "",
       "title": "nameOverride",
@@ -285,11 +286,6 @@
           "default": "/var/lib/kubelet",
           "title": "kubeletRootDir",
           "type": "string"
-        },
-        "logLevel": {
-          "default": 4,
-          "title": "logLevel",
-          "type": "integer"
         },
         "nodeSelector": {
           "required": [],
