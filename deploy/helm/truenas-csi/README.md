@@ -38,7 +38,6 @@ Kubernetes: `>=1.26.0-0`
 | controller.extraVolumes | list | `[]` |  |
 | controller.image.digest | string | `""` |  |
 | controller.image.tag | string | `""` |  |
-| controller.logLevel | int | `4` |  |
 | controller.nodeSelector | object | `{}` |  |
 | controller.podAnnotations | object | `{}` |  |
 | controller.podLabels | object | `{}` |  |
@@ -55,6 +54,7 @@ Kubernetes: `>=1.26.0-0`
 | image.pullSecrets | list | `[]` |  |
 | image.repository | string | `"ghcr.io/ishioni/ix-csi"` |  |
 | image.tag | string | `""` |  |
+| logLevel | string | `"info"` |  |
 | nameOverride | string | `""` |  |
 | node.affinity | object | `{}` |  |
 | node.extraEnv | list | `[]` |  |
@@ -64,7 +64,6 @@ Kubernetes: `>=1.26.0-0`
 | node.image.tag | string | `""` |  |
 | node.iscsiDir | string | `"/etc/iscsi"` |  |
 | node.kubeletRootDir | string | `"/var/lib/kubelet"` |  |
-| node.logLevel | int | `4` |  |
 | node.nodeSelector | object | `{}` |  |
 | node.podAnnotations | object | `{}` |  |
 | node.podLabels | object | `{}` |  |

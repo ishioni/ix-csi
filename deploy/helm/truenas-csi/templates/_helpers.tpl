@@ -94,3 +94,15 @@ tested independently of the release pin.
 {{- printf "%s:%s" .root.Values.image.repository (default .root.Chart.AppVersion .root.Values.image.tag) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Translate the chart's human-readable log level into Kubernetes klog verbosity.
+*/}}
+{{- define "truenas-csi.logVerbosity" -}}
+{{- $levels := dict "error" 0 "warning" 1 "info" 2 "debug" 4 -}}
+{{- $level := required "logLevel must be one of: error, warning, info, debug" .Values.logLevel -}}
+{{- if not (hasKey $levels $level) -}}
+{{- fail (printf "logLevel must be one of: error, warning, info, debug; got %q" $level) -}}
+{{- end -}}
+{{- get $levels $level -}}
+{{- end -}}

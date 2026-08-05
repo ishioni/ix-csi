@@ -1,6 +1,12 @@
 nameOverride: ""
 fullnameOverride: ""
 
+# Controls logging for the CSI driver and every Kubernetes sidecar.
+# error maps to --v=0, warning to --v=1, info to --v=2, and debug to --v=4.
+# Kubernetes logging cannot strictly filter by severity, so error and warning
+# may still include ordinary info messages emitted at the default verbosity.
+logLevel: info
+
 image:
   repository: ghcr.io/ishioni/ix-csi
   # Used when no digest is set. An empty value uses the chart appVersion.
@@ -65,7 +71,6 @@ controller:
     limits:
       memory: 256Mi
       cpu: 200m
-  logLevel: 4
   extraEnv: []
   extraVolumeMounts: []
   extraVolumes: []
@@ -89,7 +94,6 @@ node:
     limits:
       memory: 256Mi
       cpu: 200m
-  logLevel: 4
   extraEnv: []
   extraVolumeMounts: []
   extraVolumes: []
