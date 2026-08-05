@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/ishioni/ix-csi/compare/1.3.3...1.4.0) (2026-08-05)
+
+
+### Features
+
+* add chart-wide log levels ([#20](https://github.com/ishioni/ix-csi/issues/20)) ([44bd8aa](https://github.com/ishioni/ix-csi/commit/44bd8aaa36010ae4f7cca034fcd3145c6501a50b))
+
+
+### Bug Fixes
+
+* pin Helm chart images by digest ([#18](https://github.com/ishioni/ix-csi/issues/18)) ([dd447dd](https://github.com/ishioni/ix-csi/commit/dd447ddd4d142ba68fc766fd0a9a8857f76973f4))
+
 ## [1.3.3](https://github.com/ishioni/ix-csi/compare/1.3.2...1.3.3) (2026-08-04)
 
 
