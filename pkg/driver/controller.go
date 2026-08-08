@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -76,14 +77,18 @@ const (
 
 // StorageClass parameter keys
 const (
-	paramProtocol        = "protocol"
-	paramPool            = "pool"
-	paramDatasetPath     = "datasetPath"
-	paramCompression     = "compression"
-	paramSync            = "sync"
-	paramVolBlockSize    = "volblocksize"
-	paramSparse          = "sparse"
-	paramDetachedVolumes = "detachedVolumes"
+	paramProtocol           = "protocol"
+	paramPool               = "pool"
+	paramDatasetPath        = "datasetPath"
+	paramCompression        = "compression"
+	paramSync               = "sync"
+	paramVolBlockSize       = "volblocksize"
+	paramSparse             = "sparse"
+	paramDetachedVolumes    = "detachedVolumes"
+	paramDatasetDescription = "datasetDescription"
+
+	// TrueNAS user properties
+	datasetDescriptionProperty = "org.freenas:description"
 
 	// iSCSI parameters
 	paramISCSIBlockSize      = "iscsi.blocksize"
@@ -266,6 +271,15 @@ func (s *ControllerServer) validateStorageClassParameters(ctx context.Context, p
 	// dataset path and do not require the detached snapshot parent dataset.
 	if _, err := detachedBoolParameter(parameters, paramDetachedVolumes); err != nil {
 		return err
+	}
+
+	// Validate the optional Go dataset description template.
+	if val, ok := parameters[paramDatasetDescription]; ok {
+		if _, err := template.New(paramDatasetDescription).
+			Option("missingkey=zero").
+			Parse(val); err != nil {
+			return fmt.Errorf("invalid datasetDescription template: %w", err)
+		}
 	}
 
 	// Validate datasetPath (no leading/trailing slashes, no path traversal)
@@ -468,6 +482,87 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	return resp, nil
 }
 
+// renderDatasetDescription renders the optional Go template using the CSI
+// CreateVolume parameters map and convenient PVC/PV aliases.
+func renderDatasetDescription(parameters map[string]string) (string, bool, error) {
+	source, configured := parameters[paramDatasetDescription]
+	if !configured {
+		return "", false, nil
+	}
+
+	datasetDescriptionTemplate, err := template.New(paramDatasetDescription).
+		Option("missingkey=zero").
+		Parse(source)
+	if err != nil {
+		return "", true, err
+	}
+
+	var rendered strings.Builder
+	err = datasetDescriptionTemplate.Execute(&rendered, map[string]any{
+		"parameters": parameters,
+		"pvc": map[string]string{
+			"name":      parameters["csi.storage.k8s.io/pvc/name"],
+			"namespace": parameters["csi.storage.k8s.io/pvc/namespace"],
+		},
+		"pv": map[string]string{
+			"name": parameters["csi.storage.k8s.io/pv/name"],
+		},
+	})
+	if err != nil {
+		return "", true, err
+	}
+	return rendered.String(), true, nil
+}
+
+func datasetPropertiesFromParameters(parameters map[string]string) (map[string]any, error) {
+	properties := make(map[string]any)
+	for key, value := range parameters {
+		if propName, found := strings.CutPrefix(key, "zfs."); found {
+			properties[propName] = value
+		}
+	}
+
+	// datasetDescription is the explicit interface for templated descriptions.
+	// Apply it after zfs.* so it wins if both parameters target the description
+	// property.
+	description, configured, err := renderDatasetDescription(parameters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render datasetDescription template: %w", err)
+	}
+	if configured {
+		properties[datasetDescriptionProperty] = description
+	}
+	return properties, nil
+}
+
+func datasetDescriptionUpdateOptions(parameters map[string]string) (*client.DatasetUpdateOptions, error) {
+	description, configured, err := renderDatasetDescription(parameters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render datasetDescription template: %w", err)
+	}
+	if !configured {
+		return nil, nil
+	}
+
+	return &client.DatasetUpdateOptions{
+		UserProperties: []map[string]string{{
+			"key":   datasetDescriptionProperty,
+			"value": description,
+		}},
+	}, nil
+}
+
+func (s *ControllerServer) setDatasetDescription(ctx context.Context, datasetPath string, parameters map[string]string) error {
+	options, err := datasetDescriptionUpdateOptions(parameters)
+	if err != nil {
+		return err
+	}
+	if options == nil {
+		return nil
+	}
+	return s.driver.Client().UpdateDataset(ctx, datasetPath, options)
+}
+
 // applyNFSShareParameters configures an NFS share's user/group mapping and access
 // lists from StorageClass parameters. By default all access is squashed to a
 // single user via mapall (defaultNFSMapAllUser:defaultNFSMapAllGroup, overridable
@@ -516,24 +611,23 @@ func (s *ControllerServer) createNFSVolume(ctx context.Context, volumeID, datase
 		sync = strings.ToUpper(val)
 	}
 
+	properties, err := datasetPropertiesFromParameters(parameters)
+	if err != nil {
+		return nil, err
+	}
+
 	datasetOpts := &client.DatasetCreateOptions{
 		Name:        datasetPath,
 		Type:        datasetTypeFilesystem,
 		RefQuota:    capacityBytes,
 		Compression: compression,
 		Sync:        sync,
-		Properties:  make(map[string]any),
+		Properties:  properties,
 	}
 
 	// Enable ancestor creation when datasetPath places volumes in a subdirectory
 	if _, ok := parameters[paramDatasetPath]; ok {
 		datasetOpts.CreateAncestors = true
-	}
-
-	for key, value := range parameters {
-		if propName, found := strings.CutPrefix(key, "zfs."); found {
-			datasetOpts.Properties[propName] = value
-		}
 	}
 
 	// Add encryption options if configured
@@ -685,8 +779,8 @@ func makeNVMeSubsysName(volumeID string) string {
 
 // buildZVOLCreateOptions builds the dataset create options for a ZVOL, shared by
 // the iSCSI and NVMe-oF volume creation paths (compression, volblocksize, sparse,
-// zfs.* properties, encryption, ancestor creation).
-func (s *ControllerServer) buildZVOLCreateOptions(datasetPath string, capacityBytes int64, parameters, secrets map[string]string) *client.DatasetCreateOptions {
+// dataset description, encryption, ancestor creation).
+func (s *ControllerServer) buildZVOLCreateOptions(datasetPath string, capacityBytes int64, parameters, secrets map[string]string) (*client.DatasetCreateOptions, error) {
 	compression := CompressionLZ4
 	if val, ok := parameters[paramCompression]; ok {
 		compression = strings.ToUpper(val)
@@ -697,13 +791,18 @@ func (s *ControllerServer) buildZVOLCreateOptions(datasetPath string, capacityBy
 		volblocksize = val
 	}
 
+	properties, err := datasetPropertiesFromParameters(parameters)
+	if err != nil {
+		return nil, err
+	}
+
 	opts := &client.DatasetCreateOptions{
 		Name:         datasetPath,
 		Type:         datasetTypeVolume,
 		Volsize:      capacityBytes,
 		Volblocksize: volblocksize,
 		Compression:  compression,
-		Properties:   make(map[string]any),
+		Properties:   properties,
 	}
 
 	if _, ok := parameters[paramDatasetPath]; ok {
@@ -716,12 +815,6 @@ func (s *ControllerServer) buildZVOLCreateOptions(datasetPath string, capacityBy
 		s.driver.Log().V(LogLevelDebug).Info("Enabling sparse (thin) provisioning for ZVOL", "dataset", datasetPath)
 	}
 
-	for key, value := range parameters {
-		if propName, found := strings.CutPrefix(key, "zfs."); found {
-			opts.Properties[propName] = value
-		}
-	}
-
 	if encOpts := parseEncryptionOptions(parameters, secrets); encOpts != nil {
 		opts.Encryption = true
 		opts.EncryptionOptions = encOpts
@@ -730,7 +823,7 @@ func (s *ControllerServer) buildZVOLCreateOptions(datasetPath string, capacityBy
 		s.driver.Log().V(LogLevelDebug).Info("Enabling encryption for ZVOL", "dataset", datasetPath, "algorithm", encOpts.Algorithm)
 	}
 
-	return opts
+	return opts, nil
 }
 
 // ensureNVMeHost gets or creates a shared nvmet host for the StorageClass's hostNQN.
@@ -775,7 +868,10 @@ func (s *ControllerServer) createNVMeOFVolume(ctx context.Context, volumeID, dat
 		return nil, fmt.Errorf("failed to resolve NVMe-oF port: %w", err)
 	}
 
-	datasetOpts := s.buildZVOLCreateOptions(datasetPath, capacityBytes, parameters, secrets)
+	datasetOpts, err := s.buildZVOLCreateOptions(datasetPath, capacityBytes, parameters, secrets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare ZVOL properties: %w", err)
+	}
 	if _, err := s.driver.Client().CreateDataset(ctx, datasetOpts); err != nil {
 		return nil, fmt.Errorf("failed to create ZVOL: %w", err)
 	}
@@ -1127,7 +1223,10 @@ func (s *ControllerServer) createISCSIVolume(ctx context.Context, volumeID, data
 		return nil, fmt.Errorf("failed to resolve iSCSI portal ID: %w", err)
 	}
 
-	datasetOpts := s.buildZVOLCreateOptions(datasetPath, capacityBytes, parameters, secrets)
+	datasetOpts, err := s.buildZVOLCreateOptions(datasetPath, capacityBytes, parameters, secrets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare ZVOL properties: %w", err)
+	}
 
 	_, err = s.driver.Client().CreateDataset(ctx, datasetOpts)
 	if err != nil {
@@ -1367,6 +1466,11 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			return nil, status.Errorf(codes.Internal, "failed to clone snapshot: %v", err)
 		}
 
+		if err := s.setDatasetDescription(ctx, datasetPath, parameters); err != nil {
+			s.driver.Client().DeleteDataset(ctx, datasetPath, &client.DatasetDeleteOptions{Recursive: true, Force: true})
+			return nil, status.Errorf(codes.Internal, "failed to set cloned dataset description: %v", err)
+		}
+
 		requiredBytes := int64(0)
 		if req.CapacityRange != nil {
 			requiredBytes = req.CapacityRange.RequiredBytes
@@ -1466,6 +1570,11 @@ func (s *ControllerServer) createVolumeFromSource(ctx context.Context, req *csi.
 			}
 
 			s.driver.Client().DeleteSnapshot(ctx, snapshot.ID)
+		}
+
+		if err := s.setDatasetDescription(ctx, datasetPath, parameters); err != nil {
+			s.driver.Client().DeleteDataset(ctx, datasetPath, &client.DatasetDeleteOptions{Recursive: true, Force: true})
+			return nil, status.Errorf(codes.Internal, "failed to set cloned dataset description: %v", err)
 		}
 
 		requiredBytes := int64(0)

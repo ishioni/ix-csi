@@ -182,19 +182,60 @@ sudo systemctl enable microk8s-mount-propagation
 
 #### General Parameters
 
-| Parameter         | Description                                                                                                                                                                                                                          | Values                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `protocol`        | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
-| `pool`            | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
-| `datasetPath`     | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
-| `compression`     | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
-| `sync`            | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
-| `sparse`          | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
-| `detachedVolumes` | Create an independent volume from a snapshot or another volume using replication                                                                                                                                                     | `true`, `false`                                             |
+| Parameter            | Description                                                                                                                                                                                                                          | Values                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `protocol`           | Storage protocol                                                                                                                                                                                                                     | `nfs`, `iscsi`, `nvmeof`                                    |
+| `pool`               | ZFS pool (overrides default)                                                                                                                                                                                                         | pool name                                                   |
+| `datasetPath`        | Parent path for volume datasets, **relative to the pool** (no pool prefix, no leading/trailing `/`, no `..`). If unset, volumes are created at the **pool root** (`pool/<pvc-name>`); e.g. `k8s/iscsi` → `pool/k8s/iscsi/<pvc-name>` | relative path                                               |
+| `compression`        | ZFS compression algorithm                                                                                                                                                                                                            | `OFF`, `LZ4`, `GZIP[-1\|-9]`, `ZSTD[-1..-9]`, `ZLE`, `LZJB` |
+| `sync`               | ZFS sync mode                                                                                                                                                                                                                        | `STANDARD`, `ALWAYS`, `DISABLED`                            |
+| `sparse`             | Thin-provision the ZVOL (iSCSI/NVMe-oF); default `false`                                                                                                                                                                             | `true`, `false`                                             |
+| `detachedVolumes`    | Create an independent volume from a snapshot or another volume using replication                                                                                                                                                     | `true`, `false`                                             |
+| `datasetDescription` | Optional Helm-like Go template for the TrueNAS `org.freenas:description` user property. No property is written when this parameter is absent.                                                                                        | template string                                             |
+| `zfs.<property>`     | Literal ZFS property pass-through for newly created datasets and ZVOLs; not applied to clone operations                                                                                                                              | e.g. `zfs.atime`, `zfs.recordsize`                          |
 
 Delete-time behavior (optional): `forceDelete` (`true`/`false`) forces removal of
 busy resources; `deleteExtentsWithTarget` (`true`/`false`, default `true`) removes
 the iSCSI extent along with its target.
+
+#### Dataset Metadata
+
+`datasetDescription` is rendered only when it is explicitly present in the
+StorageClass. It uses a Helm-like Go template. The template context contains:
+
+- `.parameters`: the full CSI `CreateVolume` parameter map, including
+  StorageClass parameters and provisioner-supplied values such as
+  `csi.storage.k8s.io/pvc/name`, `csi.storage.k8s.io/pvc/namespace`, and
+  `csi.storage.k8s.io/pv/name`.
+- `.pvc.name` and `.pvc.namespace`: convenient aliases for the PVC metadata.
+- `.pv.name`: a convenient alias for the PV name.
+
+For example:
+
+```yaml
+parameters:
+  datasetDescription: "{{ .pvc.namespace }}/{{ .pvc.name }}"
+```
+
+Use `index` to access parameter keys containing characters that are not valid
+in Go template field syntax:
+
+```yaml
+parameters:
+  datasetDescription: '{{ .parameters.foo }} / {{ index .parameters "csi.storage.k8s.io/pvc/name" }}'
+```
+
+If this value is written inside a Helm chart template, escape the inner
+`{{ ... }}` delimiters so Helm emits them literally. Helm's raw-string form
+can be used like this:
+
+```yaml
+datasetDescription: "{{`{{ .pvc.namespace }}/{{ .pvc.name }}`}}"
+```
+
+Literal text may be combined with template expressions. The rendered value is
+written only while creating the volume dataset; idempotent retries and existing
+datasets are not synchronized.
 
 #### NFS Parameters
 
