@@ -34,6 +34,14 @@ metrics:
   grafanaDashboard:
     # -- Create a Grafana Operator GrafanaDashboard resource.
     enabled: false
+    # -- Allow the Grafana Operator to import the dashboard across namespaces.
+    allowCrossNamespaceImport: true
+    # -- Datasource mappings used by the Grafana Operator.
+    datasources:
+      - datasourceName: prometheus
+        inputName: DS_PROMETHEUS
+    # -- How often the Grafana Operator re-checks the dashboard for updates.
+    resyncPeriod: 10m
     # -- Grafana folder for the GrafanaDashboard resource.
     folder: ""
     # -- Additional labels for the GrafanaDashboard resource.
@@ -43,7 +51,7 @@ metrics:
     # -- Grafana Operator instance selector for the dashboard resource.
     instanceSelector:
       matchLabels:
-        dashboards: grafana
+        grafana.internal/instance: grafana
 
 image:
   repository: ghcr.io/ishioni/ix-csi
