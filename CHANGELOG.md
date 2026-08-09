@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/ishioni/ix-csi/compare/1.5.1...1.5.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* use valid metrics port names ([#27](https://github.com/ishioni/ix-csi/issues/27)) ([8266099](https://github.com/ishioni/ix-csi/commit/82660991c4e0e8ae32b7af140873a229f57147b1))
+
 ## [1.5.1](https://github.com/ishioni/ix-csi/compare/1.5.0...1.5.1) (2026-08-09)
 
 
