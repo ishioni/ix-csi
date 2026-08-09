@@ -1429,6 +1429,33 @@ func TestDatasetCreateOptions_JSONEncoding(t *testing.T) {
 	assertFalse(t, hasSparse)
 }
 
+func TestDatasetCreateOptions_JSONEncoding_Properties(t *testing.T) {
+	opts := &DatasetCreateOptions{
+		Name: "tank/test",
+		Properties: map[string]any{
+			"atime":                   "OFF",
+			"org.freenas:description": "storage/test",
+		},
+	}
+
+	data, err := json.Marshal(opts)
+	assertNoError(t, err)
+
+	var decoded map[string]any
+	assertNoError(t, json.Unmarshal(data, &decoded))
+	assertEqual(t, decoded["atime"], "OFF")
+	_, hasProperties := decoded["properties"]
+	assertFalse(t, hasProperties)
+
+	userProperties, ok := decoded["user_properties"].([]any)
+	assertTrue(t, ok)
+	assertLen(t, userProperties, 1)
+	property, ok := userProperties[0].(map[string]any)
+	assertTrue(t, ok)
+	assertEqual(t, property["key"], "org.freenas:description")
+	assertEqual(t, property["value"], "storage/test")
+}
+
 func TestDatasetCreateOptions_JSONEncoding_WithSparse(t *testing.T) {
 	sparse := true
 	opts := &DatasetCreateOptions{

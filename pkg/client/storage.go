@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -96,26 +97,76 @@ type Dataset struct {
 
 // DatasetCreateOptions specifies options for creating a dataset.
 type DatasetCreateOptions struct {
-	Name            string         `json:"name"`
-	Type            string         `json:"type,omitempty"` // FILESYSTEM or VOLUME
-	RefQuota        int64          `json:"refquota,omitempty"`
-	RefReservation  int64          `json:"refreservation,omitempty"`
-	Quota           int64          `json:"quota,omitempty"`
-	Reservation     int64          `json:"reservation,omitempty"`
-	Compression     string         `json:"compression,omitempty"`
-	Deduplication   string         `json:"deduplication,omitempty"`
-	Sync            string         `json:"sync,omitempty"`
-	RecordSize      string         `json:"recordsize,omitempty"`
-	Volsize         int64          `json:"volsize,omitempty"` // For ZVOLs
-	Volblocksize    string         `json:"volblocksize,omitempty"`
-	Sparse          *bool          `json:"sparse,omitempty"` // Thin provisioning for ZVOLs
-	Comments        string         `json:"comments,omitempty"`
-	CreateAncestors bool           `json:"create_ancestors,omitempty"`
-	Properties      map[string]any `json:"properties,omitempty"`
+	Name            string `json:"name"`
+	Type            string `json:"type,omitempty"` // FILESYSTEM or VOLUME
+	RefQuota        int64  `json:"refquota,omitempty"`
+	RefReservation  int64  `json:"refreservation,omitempty"`
+	Quota           int64  `json:"quota,omitempty"`
+	Reservation     int64  `json:"reservation,omitempty"`
+	Compression     string `json:"compression,omitempty"`
+	Deduplication   string `json:"deduplication,omitempty"`
+	Sync            string `json:"sync,omitempty"`
+	RecordSize      string `json:"recordsize,omitempty"`
+	Volsize         int64  `json:"volsize,omitempty"` // For ZVOLs
+	Volblocksize    string `json:"volblocksize,omitempty"`
+	Sparse          *bool  `json:"sparse,omitempty"` // Thin provisioning for ZVOLs
+	Comments        string `json:"comments,omitempty"`
+	CreateAncestors bool   `json:"create_ancestors,omitempty"`
+	// Properties contains literal ZFS properties from StorageClass zfs.* parameters.
+	// It is serialized as TrueNAS API fields or user_properties, rather than as a
+	// properties object, which is not accepted by the v25.10 API.
+	Properties     map[string]any      `json:"-"`
+	UserProperties []map[string]string `json:"user_properties,omitempty"`
 	// Encryption options
 	Encryption        bool               `json:"encryption,omitempty"`
 	EncryptionOptions *EncryptionOptions `json:"encryption_options,omitempty"`
 	InheritEncryption *bool              `json:"inherit_encryption,omitempty"`
+}
+
+// MarshalJSON adapts the legacy Properties map to the TrueNAS v25.10 dataset
+// creation schema. Standard ZFS properties are top-level fields, while
+// namespaced properties (for example org.freenas:description) use the
+// user_properties list.
+func (o DatasetCreateOptions) MarshalJSON() ([]byte, error) {
+	type datasetCreateOptions DatasetCreateOptions
+	encoded, err := json.Marshal(datasetCreateOptions(o))
+	if err != nil {
+		return nil, err
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		return nil, err
+	}
+
+	userProperties := make([]map[string]string, len(o.UserProperties))
+	copy(userProperties, o.UserProperties)
+	userPropertyIndexes := make(map[string]int, len(userProperties))
+	for index, property := range userProperties {
+		if key := property["key"]; key != "" {
+			userPropertyIndexes[key] = index
+		}
+	}
+
+	for key, value := range o.Properties {
+		if strings.Contains(key, ":") {
+			property := map[string]string{"key": key, "value": fmt.Sprint(value)}
+			if index, ok := userPropertyIndexes[key]; ok {
+				userProperties[index] = property
+			} else {
+				userPropertyIndexes[key] = len(userProperties)
+				userProperties = append(userProperties, property)
+			}
+			continue
+		}
+		payload[key] = value
+	}
+
+	if len(userProperties) > 0 {
+		payload["user_properties"] = userProperties
+	}
+
+	return json.Marshal(payload)
 }
 
 // EncryptionOptions specifies encryption configuration for a dataset.
