@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/ishioni/ix-csi/compare/1.5.0...1.5.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* support Grafana dashboard folders ([#25](https://github.com/ishioni/ix-csi/issues/25)) ([410ad1b](https://github.com/ishioni/ix-csi/commit/410ad1be8930704fe90c99a1e8971e13d3039b59))
+
 ## [1.5.0](https://github.com/ishioni/ix-csi/compare/1.4.0...1.5.0) (2026-08-09)
 
 
