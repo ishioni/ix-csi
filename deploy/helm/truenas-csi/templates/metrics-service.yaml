@@ -18,21 +18,21 @@ spec:
       port: {{ .Values.metrics.port }}
       targetPort: metrics
       protocol: TCP
-    - name: provisioner-metrics
+    - name: prov-metrics
       port: 9801
-      targetPort: provisioner-metrics
+      targetPort: prov-metrics
       protocol: TCP
-    - name: attacher-metrics
+    - name: attach-metrics
       port: 9802
-      targetPort: attacher-metrics
+      targetPort: attach-metrics
       protocol: TCP
-    - name: snapshotter-metrics
+    - name: snap-metrics
       port: 9803
-      targetPort: snapshotter-metrics
+      targetPort: snap-metrics
       protocol: TCP
-    - name: resizer-metrics
+    - name: resize-metrics
       port: 9804
-      targetPort: resizer-metrics
+      targetPort: resize-metrics
       protocol: TCP
   selector:
     {{- include "truenas-csi.selectorLabels" . | nindent 4 }}
