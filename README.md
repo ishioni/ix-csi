@@ -178,6 +178,55 @@ sudo systemctl enable microk8s-mount-propagation
 | `iscsiIQNBase`                  | Base IQN for iSCSI targets                      | `iqn.2024-01.com.example`      |
 | `detachedSnapshotParentDataset` | Dataset root for independent snapshots          | `tank/csi-detached`            |
 
+### Prometheus Metrics
+
+Driver-native and CSI sidecar metrics are disabled by default. Enable both
+on the controller and node plugins with:
+
+```yaml
+metrics:
+  enabled: true
+  port: 9809
+```
+
+The chart then exposes the driver-native `/metrics` endpoint through separate
+controller and headless node Services. It also enables the CSI sidecar
+`--http-endpoint` metrics endpoints on the controller using ports `9801` through
+`9804`.
+
+To create Prometheus Operator scrape targets, also enable:
+
+```yaml
+metrics:
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+```
+
+The driver exposes CSI RPC and TrueNAS request outcomes/latency, TrueNAS
+connection and reconnect health, and provisioned capacity/volume gauges. The
+main metric families are prefixed with `ix_csi_`.
+
+The four CSI sidecars share the `csi_sidecar_operations_seconds` histogram,
+with `driver_name`, `method_name`, and `grpc_status_code` labels. The
+external-provisioner also exposes provision/delete counters and latency
+histograms prefixed with `controller_`. The bundled Grafana dashboard includes
+separate sections for driver, sidecar, and provisioner metrics.
+
+The chart can optionally create a Prometheus Operator `ServiceMonitor`, a
+Grafana sidecar-discovery ConfigMap, and a Grafana Operator `GrafanaDashboard`:
+
+```yaml
+metrics:
+  serviceMonitor:
+    enabled: true
+  dashboards:
+    enabled: true
+  grafanaDashboard:
+    enabled: true
+```
+
 ### StorageClass Parameters
 
 #### General Parameters

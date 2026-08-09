@@ -76,6 +76,15 @@ spec:
             - --node-id=$(NODE_ID)
             - --mode=node
             - --v={{ include "truenas-csi.logVerbosity" . }}
+            {{- if .Values.metrics.enabled }}
+            - --metrics-addr=:{{ .Values.metrics.port }}
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+          {{- end }}
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock

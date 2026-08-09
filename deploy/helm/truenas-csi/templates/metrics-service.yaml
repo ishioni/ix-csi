@@ -1,0 +1,64 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "truenas-csi.fullname" . }}-controller-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "truenas-csi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+  {{- with .Values.metrics.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+    - name: provisioner-metrics
+      port: 9801
+      targetPort: provisioner-metrics
+      protocol: TCP
+    - name: attacher-metrics
+      port: 9802
+      targetPort: attacher-metrics
+      protocol: TCP
+    - name: snapshotter-metrics
+      port: 9803
+      targetPort: snapshotter-metrics
+      protocol: TCP
+    - name: resizer-metrics
+      port: 9804
+      targetPort: resizer-metrics
+      protocol: TCP
+  selector:
+    {{- include "truenas-csi.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "truenas-csi.fullname" . }}-node-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "truenas-csi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: node
+  {{- with .Values.metrics.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "truenas-csi.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: node
+{{- end }}
