@@ -226,6 +226,139 @@
       "title": "logLevel",
       "type": "string"
     },
+    "metrics": {
+      "properties": {
+        "dashboards": {
+          "properties": {
+            "annotations": {
+              "description": "Additional annotations for the dashboard ConfigMap.",
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a Grafana sidecar-discovery ConfigMap.",
+              "title": "enabled",
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "title": "dashboards",
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable driver-native and CSI sidecar Prometheus endpoints and metrics Services.",
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "grafanaDashboard": {
+          "properties": {
+            "annotations": {
+              "description": "Additional annotations for the GrafanaDashboard resource.",
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a Grafana Operator GrafanaDashboard resource.",
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "instanceSelector": {
+              "description": "Grafana Operator instance selector for the dashboard resource.",
+              "properties": {
+                "matchLabels": {
+                  "properties": {
+                    "dashboards": {
+                      "default": "grafana",
+                      "title": "dashboards",
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "title": "matchLabels",
+                  "type": "object"
+                }
+              },
+              "required": [],
+              "title": "instanceSelector",
+              "type": "object"
+            },
+            "labels": {
+              "description": "Additional labels for the GrafanaDashboard resource.",
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            }
+          },
+          "required": [],
+          "title": "grafanaDashboard",
+          "type": "object"
+        },
+        "port": {
+          "default": 9809,
+          "description": "TCP port used by the driver-native Prometheus endpoint.",
+          "title": "port",
+          "type": "integer"
+        },
+        "service": {
+          "properties": {
+            "annotations": {
+              "description": "Additional annotations for the controller and node metrics Services.",
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            }
+          },
+          "required": [],
+          "title": "service",
+          "type": "object"
+        },
+        "serviceMonitor": {
+          "properties": {
+            "annotations": {
+              "description": "Additional ServiceMonitor annotations.",
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create Prometheus Operator ServiceMonitor resources.",
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "interval": {
+              "default": "30s",
+              "description": "Prometheus scrape interval.",
+              "title": "interval",
+              "type": "string"
+            },
+            "labels": {
+              "description": "Additional labels for ServiceMonitor selection by Prometheus.",
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "scrapeTimeout": {
+              "default": "10s",
+              "description": "Prometheus scrape timeout.",
+              "title": "scrapeTimeout",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "serviceMonitor",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "metrics",
+      "type": "object"
+    },
     "nameOverride": {
       "default": "",
       "title": "nameOverride",

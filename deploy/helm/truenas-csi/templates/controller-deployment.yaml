@@ -57,6 +57,27 @@ spec:
             - --node-id=$(NODE_ID)
             - --mode=controller
             - --v={{ include "truenas-csi.logVerbosity" . }}
+            {{- if .Values.metrics.enabled }}
+            - --metrics-addr=:{{ .Values.metrics.port }}
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+            - name: provisioner-metrics
+              containerPort: 9801
+              protocol: TCP
+            - name: attacher-metrics
+              containerPort: 9802
+              protocol: TCP
+            - name: snapshotter-metrics
+              containerPort: 9803
+              protocol: TCP
+            - name: resizer-metrics
+              containerPort: 9804
+              protocol: TCP
+          {{- end }}
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -101,6 +122,15 @@ spec:
             - --leader-election=true
             - --default-fstype=ext4
             - --timeout=60s
+            {{- if .Values.metrics.enabled }}
+            - --http-endpoint=:9801
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: provisioner-metrics
+              containerPort: 9801
+              protocol: TCP
+          {{- end }}
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -115,6 +145,15 @@ spec:
             - --v={{ include "truenas-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
+            {{- if .Values.metrics.enabled }}
+            - --http-endpoint=:9802
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: attacher-metrics
+              containerPort: 9802
+              protocol: TCP
+          {{- end }}
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -129,6 +168,15 @@ spec:
             - --v={{ include "truenas-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
+            {{- if .Values.metrics.enabled }}
+            - --http-endpoint=:9803
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: snapshotter-metrics
+              containerPort: 9803
+              protocol: TCP
+          {{- end }}
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -143,6 +191,15 @@ spec:
             - --v={{ include "truenas-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
+            {{- if .Values.metrics.enabled }}
+            - --http-endpoint=:9804
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: resizer-metrics
+              containerPort: 9804
+              protocol: TCP
+          {{- end }}
           env:
             - name: ADDRESS
               value: /csi/csi.sock

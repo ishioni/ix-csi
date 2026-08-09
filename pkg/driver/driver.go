@@ -212,8 +212,12 @@ type Driver struct {
 	nodeID   string
 	endpoint string
 
-	log    logr.Logger
-	client *client.Client
+	log     logr.Logger
+	client  *client.Client
+	metrics *Metrics
+
+	metricsAddr   string
+	metricsServer *MetricsServer
 
 	defaultPool                   string
 	detachedSnapshotParentDataset string
@@ -287,6 +291,10 @@ type DriverConfig struct {
 	// Logger is the structured logger for the driver and client.
 	// If not set, logging for the client will be disabled.
 	Logger logr.Logger
+
+	// MetricsAddr is the TCP address for the driver-native Prometheus endpoint.
+	// An empty value disables the endpoint.
+	MetricsAddr string
 }
 
 // NewDriver creates a new TrueNAS CSI driver with the given configuration.
@@ -363,12 +371,14 @@ func NewDriver(config *DriverConfig) (*Driver, error) {
 	}
 
 	ctx := context.Background()
+	metrics := NewMetrics()
 
 	cfg := client.Config{
 		URL:                config.TrueNASURL,
 		APIKey:             config.TrueNASAPIKey,
 		InsecureSkipVerify: config.TrueNASInsecure,
 		Logger:             config.Logger,
+		Metrics:            metrics,
 	}
 
 	truenasClient := client.New(cfg)
@@ -464,6 +474,8 @@ func NewDriver(config *DriverConfig) (*Driver, error) {
 		endpoint:                      config.Endpoint,
 		log:                           log,
 		client:                        truenasClient,
+		metrics:                       metrics,
+		metricsAddr:                   config.MetricsAddr,
 		defaultPool:                   config.DefaultPool,
 		detachedSnapshotParentDataset: config.DetachedSnapshotParentDataset,
 		nfsServer:                     config.NFSServer,
@@ -556,6 +568,19 @@ func (d *Driver) Run(ctx context.Context) error {
 	csi.RegisterControllerServer(d.server, d.controllerServer)
 	csi.RegisterNodeServer(d.server, d.nodeServer)
 
+	metricsServer, err := NewMetricsServer(d.metricsAddr, d.metrics)
+	if err != nil {
+		listener.Close()
+		if closeErr := d.client.Close(); closeErr != nil {
+			d.log.V(LogLevelInfo).Error(closeErr, "TrueNAS client stopped after metrics server failure")
+		}
+		return err
+	}
+	d.metricsServer = metricsServer
+	if metricsServer != nil {
+		metricsServer.Start()
+	}
+
 	serverErr := make(chan error, 1)
 
 	go func() {
@@ -581,12 +606,24 @@ func (d *Driver) Run(ctx context.Context) error {
 		d.log.V(LogLevelInfo).Error(err, "Server error occurred")
 		d.Stop()
 		return fmt.Errorf("server error: %v", err)
+	case err := <-d.metricsServer.Errors():
+		d.log.V(LogLevelInfo).Error(err, "Metrics server error occurred")
+		d.Stop()
+		return fmt.Errorf("metrics server error: %v", err)
 	}
 }
 
 // Stop gracefully shuts down the CSI driver with a timeout.
 func (d *Driver) Stop() {
 	d.log.V(LogLevelInfo).Info("Stopping CSI driver server")
+
+	if d.metricsServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), GracefulShutdownTimeout)
+		if err := d.metricsServer.Stop(ctx); err != nil {
+			d.log.V(LogLevelInfo).Error(err, "Metrics server stopped with error")
+		}
+		cancel()
+	}
 
 	// Graceful stop with timeout
 	done := make(chan struct{})
@@ -627,6 +664,9 @@ func (d *Driver) unaryInterceptor(ctx context.Context, req any, info *grpc.Unary
 	resp, err := handler(ctx, req)
 
 	duration := time.Since(startTime)
+	if d.metrics != nil {
+		d.metrics.ObserveCSI(info.FullMethod, err, duration)
+	}
 	if err != nil {
 		d.log.Error(err, "GRPC call failed", "method", info.FullMethod, "requestId", requestID, "duration", duration)
 	} else {

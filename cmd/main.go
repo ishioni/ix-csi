@@ -15,9 +15,10 @@ import (
 
 var (
 	// CSI protocol flags
-	endpoint = flag.String("endpoint", "unix:///csi/csi.sock", "CSI endpoint")
-	nodeID   = flag.String("node-id", "", "Node ID")
-	mode     = flag.String("mode", "all", "Driver mode: controller, node, or all")
+	endpoint    = flag.String("endpoint", "unix:///csi/csi.sock", "CSI endpoint")
+	nodeID      = flag.String("node-id", "", "Node ID")
+	mode        = flag.String("mode", "all", "Driver mode: controller, node, or all")
+	metricsAddr = flag.String("metrics-addr", "", "Prometheus metrics HTTP listen address; empty disables metrics")
 )
 
 func main() {
@@ -35,10 +36,11 @@ func main() {
 	}
 
 	config := &driver.DriverConfig{
-		NodeID:   *nodeID,
-		Endpoint: *endpoint,
-		Mode:     driver.DriverMode(*mode),
-		Logger:   logger,
+		NodeID:      *nodeID,
+		Endpoint:    *endpoint,
+		Mode:        driver.DriverMode(*mode),
+		MetricsAddr: *metricsAddr,
+		Logger:      logger,
 	}
 
 	if err := loadEnvConfig(config); err != nil {

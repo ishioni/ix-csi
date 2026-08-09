@@ -57,6 +57,15 @@ var (
 	ErrUnsupportedAPIVersion = errors.New("truenas: required API version not supported by server")
 )
 
+// MetricsRecorder receives low-cardinality client observability events without
+// coupling the client package to a metrics implementation.
+type MetricsRecorder interface {
+	ObserveRequest(method, status string, duration time.Duration)
+	SetConnectionStatus(connected bool)
+	ObserveConnectionAttempt(result string)
+	ObserveReconnect(result string)
+}
+
 // Config holds configuration for the TrueNAS client.
 type Config struct {
 	URL                string
@@ -76,6 +85,8 @@ type Config struct {
 	MaxConcurrentCalls int
 	// Logger is an optional structured logger. If not provided, logging is disabled.
 	Logger logr.Logger
+	// Metrics receives low-cardinality request and connection events when set.
+	Metrics MetricsRecorder
 }
 
 // ConnectionError wraps connection-related errors.
@@ -273,7 +284,19 @@ func (c *Client) Connect(ctx context.Context) error {
 }
 
 // dial establishes a WebSocket connection to TrueNAS and authenticates.
-func (c *Client) dial(ctx context.Context) error {
+func (c *Client) dial(ctx context.Context) (err error) {
+	if c.config.Metrics != nil {
+		defer func() {
+			if err == nil {
+				c.config.Metrics.ObserveConnectionAttempt("success")
+				c.config.Metrics.SetConnectionStatus(true)
+				return
+			}
+			c.config.Metrics.ObserveConnectionAttempt("failure")
+			c.config.Metrics.SetConnectionStatus(false)
+		}()
+	}
+
 	if c.closed.Load() {
 		return ErrClosed
 	}
@@ -446,6 +469,9 @@ func (c *Client) handleDisconnect(conn *websocket.Conn) {
 	c.conn = nil
 	c.connMu.Unlock()
 
+	if c.config.Metrics != nil {
+		c.config.Metrics.SetConnectionStatus(false)
+	}
 	conn.Close(websocket.StatusNormalClosure, "")
 
 	// Fail pending requests
@@ -509,10 +535,16 @@ func (c *Client) reconnectLoop() {
 		cancel()
 
 		if err == nil {
+			if c.config.Metrics != nil {
+				c.config.Metrics.ObserveReconnect("success")
+			}
 			c.log.Info("Reconnected to TrueNAS", "attempts", attempt)
 			return
 		}
 
+		if c.config.Metrics != nil {
+			c.config.Metrics.ObserveReconnect("failure")
+		}
 		c.log.V(logLevelInfo).Info("TrueNAS reconnect failed", "error", err)
 
 		// Exponential backoff
@@ -555,7 +587,15 @@ func (c *Client) Call(ctx context.Context, method string, params, result any) er
 			continue
 		}
 
+		start := time.Now()
 		err := c.callOn(ctx, conn, method, params, result)
+		if c.config.Metrics != nil {
+			outcome := "success"
+			if err != nil {
+				outcome = "error"
+			}
+			c.config.Metrics.ObserveRequest(method, outcome, time.Since(start))
+		}
 		if err == nil {
 			return nil
 		}
@@ -673,6 +713,9 @@ func (c *Client) Close() error {
 	c.conn = nil
 	c.connMu.Unlock()
 
+	if c.config.Metrics != nil {
+		c.config.Metrics.SetConnectionStatus(false)
+	}
 	if conn != nil {
 		return conn.Close(websocket.StatusNormalClosure, "")
 	}
