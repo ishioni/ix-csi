@@ -58,11 +58,14 @@ Kubernetes: `>=1.26.0-0`
 | metrics.dashboards.annotations | object | `{}` | Additional annotations for the dashboard ConfigMap. |
 | metrics.dashboards.enabled | bool | `false` | Create a Grafana sidecar-discovery ConfigMap. |
 | metrics.enabled | bool | `false` | Enable driver-native and CSI sidecar Prometheus endpoints and metrics Services. |
+| metrics.grafanaDashboard.allowCrossNamespaceImport | bool | `true` | Allow the Grafana Operator to import the dashboard across namespaces. |
 | metrics.grafanaDashboard.annotations | object | `{}` | Additional annotations for the GrafanaDashboard resource. |
+| metrics.grafanaDashboard.datasources | list | `[{"datasourceName":"prometheus","inputName":"DS_PROMETHEUS"}]` | Datasource mappings used by the Grafana Operator. |
 | metrics.grafanaDashboard.enabled | bool | `false` | Create a Grafana Operator GrafanaDashboard resource. |
 | metrics.grafanaDashboard.folder | string | `""` | Grafana folder for the GrafanaDashboard resource. |
-| metrics.grafanaDashboard.instanceSelector | object | `{"matchLabels":{"dashboards":"grafana"}}` | Grafana Operator instance selector for the dashboard resource. |
+| metrics.grafanaDashboard.instanceSelector | object | `{"matchLabels":{"grafana.internal/instance":"grafana"}}` | Grafana Operator instance selector for the dashboard resource. |
 | metrics.grafanaDashboard.labels | object | `{}` | Additional labels for the GrafanaDashboard resource. |
+| metrics.grafanaDashboard.resyncPeriod | string | `"10m"` | How often the Grafana Operator re-checks the dashboard for updates. |
 | metrics.port | int | `9809` | TCP port used by the driver-native Prometheus endpoint. |
 | metrics.service.annotations | object | `{}` | Additional annotations for the controller and node metrics Services. |
 | metrics.serviceMonitor.annotations | object | `{}` | Additional ServiceMonitor annotations. |

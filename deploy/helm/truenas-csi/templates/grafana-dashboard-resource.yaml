@@ -14,12 +14,19 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  allowCrossNamespaceImport: {{ .Values.metrics.grafanaDashboard.allowCrossNamespaceImport }}
+  resyncPeriod: {{ .Values.metrics.grafanaDashboard.resyncPeriod | quote }}
+  configMapRef:
+    name: {{ include "truenas-csi.fullname" . }}-grafana-dashboard
+    key: ix-csi.json
+  {{- with .Values.metrics.grafanaDashboard.datasources }}
+  datasources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- with .Values.metrics.grafanaDashboard.folder }}
   folder: {{ . | quote }}
   {{- end }}
   instanceSelector:
-    {{- toYaml .Values.metrics.grafanaDashboard.instanceSelector | nindent 4 }}
-  configMapRef:
-    name: {{ include "truenas-csi.fullname" . }}-grafana-dashboard
-    key: ix-csi.json
+    matchLabels:
+      {{- toYaml .Values.metrics.grafanaDashboard.instanceSelector.matchLabels | nindent 6 }}
 {{- end }}

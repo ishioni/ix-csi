@@ -255,11 +255,43 @@
         },
         "grafanaDashboard": {
           "properties": {
+            "allowCrossNamespaceImport": {
+              "default": true,
+              "description": "Allow the Grafana Operator to import the dashboard across namespaces.",
+              "title": "allowCrossNamespaceImport",
+              "type": "boolean"
+            },
             "annotations": {
               "description": "Additional annotations for the GrafanaDashboard resource.",
               "required": [],
               "title": "annotations",
               "type": "object"
+            },
+            "datasources": {
+              "description": "Datasource mappings used by the Grafana Operator.",
+              "items": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "datasourceName": {
+                        "default": "prometheus",
+                        "title": "datasourceName",
+                        "type": "string"
+                      },
+                      "inputName": {
+                        "default": "DS_PROMETHEUS",
+                        "title": "inputName",
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  }
+                ],
+                "required": []
+              },
+              "title": "datasources",
+              "type": "array"
             },
             "enabled": {
               "default": false,
@@ -278,9 +310,9 @@
               "properties": {
                 "matchLabels": {
                   "properties": {
-                    "dashboards": {
+                    "grafana.internal/instance": {
                       "default": "grafana",
-                      "title": "dashboards",
+                      "title": "grafana.internal/instance",
                       "type": "string"
                     }
                   },
@@ -298,6 +330,12 @@
               "required": [],
               "title": "labels",
               "type": "object"
+            },
+            "resyncPeriod": {
+              "default": "10m",
+              "description": "How often the Grafana Operator re-checks the dashboard for updates.",
+              "title": "resyncPeriod",
+              "type": "string"
             }
           },
           "required": [],
