@@ -267,6 +267,12 @@
               "title": "enabled",
               "type": "boolean"
             },
+            "folder": {
+              "default": "",
+              "description": "Grafana folder for the GrafanaDashboard resource.",
+              "title": "folder",
+              "type": "string"
+            },
             "instanceSelector": {
               "description": "Grafana Operator instance selector for the dashboard resource.",
               "properties": {
