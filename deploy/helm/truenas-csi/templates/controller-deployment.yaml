@@ -65,16 +65,16 @@ spec:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
               protocol: TCP
-            - name: provisioner-metrics
+            - name: prov-metrics
               containerPort: 9801
               protocol: TCP
-            - name: attacher-metrics
+            - name: attach-metrics
               containerPort: 9802
               protocol: TCP
-            - name: snapshotter-metrics
+            - name: snap-metrics
               containerPort: 9803
               protocol: TCP
-            - name: resizer-metrics
+            - name: resize-metrics
               containerPort: 9804
               protocol: TCP
           {{- end }}
@@ -127,7 +127,7 @@ spec:
             {{- end }}
           {{- if .Values.metrics.enabled }}
           ports:
-            - name: provisioner-metrics
+            - name: prov-metrics
               containerPort: 9801
               protocol: TCP
           {{- end }}
@@ -150,7 +150,7 @@ spec:
             {{- end }}
           {{- if .Values.metrics.enabled }}
           ports:
-            - name: attacher-metrics
+            - name: attach-metrics
               containerPort: 9802
               protocol: TCP
           {{- end }}
@@ -173,7 +173,7 @@ spec:
             {{- end }}
           {{- if .Values.metrics.enabled }}
           ports:
-            - name: snapshotter-metrics
+            - name: snap-metrics
               containerPort: 9803
               protocol: TCP
           {{- end }}
@@ -196,7 +196,7 @@ spec:
             {{- end }}
           {{- if .Values.metrics.enabled }}
           ports:
-            - name: resizer-metrics
+            - name: resize-metrics
               containerPort: 9804
               protocol: TCP
           {{- end }}
