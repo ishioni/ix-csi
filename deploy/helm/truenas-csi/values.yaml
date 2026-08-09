@@ -34,6 +34,8 @@ metrics:
   grafanaDashboard:
     # -- Create a Grafana Operator GrafanaDashboard resource.
     enabled: false
+    # -- Grafana folder for the GrafanaDashboard resource.
+    folder: ""
     # -- Additional labels for the GrafanaDashboard resource.
     labels: {}
     # -- Additional annotations for the GrafanaDashboard resource.

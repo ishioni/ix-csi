@@ -60,6 +60,7 @@ Kubernetes: `>=1.26.0-0`
 | metrics.enabled | bool | `false` | Enable driver-native and CSI sidecar Prometheus endpoints and metrics Services. |
 | metrics.grafanaDashboard.annotations | object | `{}` | Additional annotations for the GrafanaDashboard resource. |
 | metrics.grafanaDashboard.enabled | bool | `false` | Create a Grafana Operator GrafanaDashboard resource. |
+| metrics.grafanaDashboard.folder | string | `""` | Grafana folder for the GrafanaDashboard resource. |
 | metrics.grafanaDashboard.instanceSelector | object | `{"matchLabels":{"dashboards":"grafana"}}` | Grafana Operator instance selector for the dashboard resource. |
 | metrics.grafanaDashboard.labels | object | `{}` | Additional labels for the GrafanaDashboard resource. |
 | metrics.port | int | `9809` | TCP port used by the driver-native Prometheus endpoint. |
