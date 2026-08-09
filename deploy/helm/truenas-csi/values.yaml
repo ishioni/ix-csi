@@ -7,6 +7,42 @@ fullnameOverride: ""
 # may still include ordinary info messages emitted at the default verbosity.
 logLevel: info
 
+metrics:
+  # -- Enable driver-native and CSI sidecar Prometheus endpoints and metrics Services.
+  enabled: false
+  # -- TCP port used by the driver-native Prometheus endpoint.
+  port: 9809
+  service:
+    # -- Additional annotations for the controller and node metrics Services.
+    annotations: {}
+  serviceMonitor:
+    # -- Create Prometheus Operator ServiceMonitor resources.
+    enabled: false
+    # -- Additional labels for ServiceMonitor selection by Prometheus.
+    labels: {}
+    # -- Additional ServiceMonitor annotations.
+    annotations: {}
+    # -- Prometheus scrape interval.
+    interval: 30s
+    # -- Prometheus scrape timeout.
+    scrapeTimeout: 10s
+  dashboards:
+    # -- Create a Grafana sidecar-discovery ConfigMap.
+    enabled: false
+    # -- Additional annotations for the dashboard ConfigMap.
+    annotations: {}
+  grafanaDashboard:
+    # -- Create a Grafana Operator GrafanaDashboard resource.
+    enabled: false
+    # -- Additional labels for the GrafanaDashboard resource.
+    labels: {}
+    # -- Additional annotations for the GrafanaDashboard resource.
+    annotations: {}
+    # -- Grafana Operator instance selector for the dashboard resource.
+    instanceSelector:
+      matchLabels:
+        dashboards: grafana
+
 image:
   repository: ghcr.io/ishioni/ix-csi
   # Used when no digest is set. An empty value uses the chart appVersion.

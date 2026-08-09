@@ -408,6 +408,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to ensure iSCSI resources for existing volume: %v", err)
 			}
+			s.driver.RecordProvisionedVolume(&VolumeInfo{ID: volumeID, PoolName: pool, Protocol: protocol, CapacityBytes: returnedCapacity})
 			s.driver.Log().V(LogLevelDebug).Info("Volume already exists, returning with iSCSI context", "volumeId", volumeID, "capacity", returnedCapacity)
 			return &csi.CreateVolumeResponse{
 				Volume: &csi.Volume{
@@ -424,6 +425,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to ensure NVMe-oF resources for existing volume: %v", err)
 			}
+			s.driver.RecordProvisionedVolume(&VolumeInfo{ID: volumeID, PoolName: pool, Protocol: protocol, CapacityBytes: returnedCapacity})
 			s.driver.Log().V(LogLevelDebug).Info("Volume already exists, returning with NVMe-oF context", "volumeId", volumeID, "capacity", returnedCapacity)
 			return &csi.CreateVolumeResponse{
 				Volume: &csi.Volume{
@@ -434,6 +436,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			}, nil
 		}
 
+		s.driver.RecordProvisionedVolume(&VolumeInfo{ID: volumeID, PoolName: pool, Protocol: protocol, CapacityBytes: returnedCapacity})
 		s.driver.Log().V(LogLevelDebug).Info("Volume already exists, returning existing volume", "volumeId", volumeID, "capacity", returnedCapacity)
 		return &csi.CreateVolumeResponse{
 			Volume: &csi.Volume{
@@ -452,7 +455,16 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	if req.VolumeContentSource != nil {
-		return s.createVolumeFromSource(ctx, req, volumeID, datasetPath, protocol, parameters, secrets)
+		resp, err := s.createVolumeFromSource(ctx, req, volumeID, datasetPath, protocol, parameters, secrets)
+		if err == nil && resp != nil && resp.Volume != nil {
+			s.driver.RecordProvisionedVolume(&VolumeInfo{
+				ID:            resp.Volume.VolumeId,
+				PoolName:      pool,
+				Protocol:      protocol,
+				CapacityBytes: resp.Volume.CapacityBytes,
+			})
+		}
+		return resp, err
 	}
 
 	var volInfo *VolumeInfo
@@ -478,6 +490,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		},
 	}
 
+	s.driver.RecordProvisionedVolume(volInfo)
 	s.driver.Log().V(LogLevelDebug).Info("Volume created successfully", "volumeId", volumeID)
 	return resp, nil
 }
@@ -1828,6 +1841,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	pool, name, err := s.driver.ParseVolumeID(req.VolumeId)
 	if err != nil {
 		// Invalid volume ID format means volume doesn't exist - return success (idempotent)
+		s.driver.RemoveProvisionedVolume(req.VolumeId)
 		s.driver.Log().V(LogLevelDebug).Info("Invalid volume ID format, treating as already deleted", "volumeId", req.VolumeId)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
@@ -1838,6 +1852,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	_, err = s.driver.Client().GetDataset(ctx, datasetPath)
 	if err != nil {
 		if client.IsNotFoundError(err) {
+			s.driver.RemoveProvisionedVolume(req.VolumeId)
 			s.driver.Log().V(LogLevelDebug).Info("Volume already deleted", "volumeId", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
@@ -1921,6 +1936,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.Internal, "failed to delete volume: %v", err)
 	}
 
+	s.driver.RemoveProvisionedVolume(req.VolumeId)
 	s.driver.Log().V(LogLevelDebug).Info("Volume deleted successfully", "volumeId", req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
@@ -2654,6 +2670,13 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to expand volume: %v", err)
 	}
+
+	s.driver.RecordProvisionedVolume(&VolumeInfo{
+		ID:            volInfo.ID,
+		PoolName:      volInfo.PoolName,
+		Protocol:      volInfo.Protocol,
+		CapacityBytes: newSize,
+	})
 
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         newSize,
