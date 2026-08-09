@@ -180,25 +180,25 @@ type EncryptionOptions struct {
 
 // DatasetUpdateOptions specifies options for updating a dataset.
 type DatasetUpdateOptions struct {
-	Comments         string              `json:"comments,omitempty"`
-	Sync             string              `json:"sync,omitempty"`
-	Compression      string              `json:"compression,omitempty"`
-	Exec             string              `json:"exec,omitempty"`
-	Quota            *int64              `json:"quota,omitempty"`
-	RefQuota         *int64              `json:"refquota,omitempty"`
-	Reservation      *int64              `json:"reservation,omitempty"`
-	RefReservation   *int64              `json:"refreservation,omitempty"`
-	Checksum         string              `json:"checksum,omitempty"`
-	Deduplication    string              `json:"deduplication,omitempty"`
-	Readonly         string              `json:"readonly,omitempty"`
-	Atime            string              `json:"atime,omitempty"`
-	RecordSize       string              `json:"recordsize,omitempty"`
-	Volsize          *int64              `json:"volsize,omitempty"`
-	QuotaWarning     *int64              `json:"quota_warning,omitempty"`
-	QuotaCritical    *int64              `json:"quota_critical,omitempty"`
-	RefQuotaWarning  *int64              `json:"refquota_warning,omitempty"`
-	RefQuotaCritical *int64              `json:"refquota_critical,omitempty"`
-	UserProperties   []map[string]string `json:"user_properties,omitempty"`
+	Comments             string              `json:"comments,omitempty"`
+	Sync                 string              `json:"sync,omitempty"`
+	Compression          string              `json:"compression,omitempty"`
+	Exec                 string              `json:"exec,omitempty"`
+	Quota                *int64              `json:"quota,omitempty"`
+	RefQuota             *int64              `json:"refquota,omitempty"`
+	Reservation          *int64              `json:"reservation,omitempty"`
+	RefReservation       *int64              `json:"refreservation,omitempty"`
+	Checksum             string              `json:"checksum,omitempty"`
+	Deduplication        string              `json:"deduplication,omitempty"`
+	Readonly             string              `json:"readonly,omitempty"`
+	Atime                string              `json:"atime,omitempty"`
+	RecordSize           string              `json:"recordsize,omitempty"`
+	Volsize              *int64              `json:"volsize,omitempty"`
+	QuotaWarning         *int64              `json:"quota_warning,omitempty"`
+	QuotaCritical        *int64              `json:"quota_critical,omitempty"`
+	RefQuotaWarning      *int64              `json:"refquota_warning,omitempty"`
+	RefQuotaCritical     *int64              `json:"refquota_critical,omitempty"`
+	UserPropertiesUpdate []map[string]string `json:"user_properties_update,omitempty"`
 }
 
 // QueryOptions specifies standard TrueNAS query options for .query and .get_instance methods.

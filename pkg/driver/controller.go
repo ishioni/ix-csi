@@ -558,7 +558,7 @@ func datasetDescriptionUpdateOptions(parameters map[string]string) (*client.Data
 	}
 
 	return &client.DatasetUpdateOptions{
-		UserProperties: []map[string]string{{
+		UserPropertiesUpdate: []map[string]string{{
 			"key":   datasetDescriptionProperty,
 			"value": description,
 		}},
