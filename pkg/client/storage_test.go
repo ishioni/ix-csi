@@ -300,7 +300,7 @@ func TestUpdateDataset_UserProperties(t *testing.T) {
 
 	client := connectTestClient(t, mock)
 	err := client.UpdateDataset(testContext(t), "tank/detached/source/snapshot", &DatasetUpdateOptions{
-		UserProperties: []map[string]string{{
+		UserPropertiesUpdate: []map[string]string{{
 			"key":   "truenas-csi:detached_snapshot",
 			"value": "true",
 		}},
@@ -313,7 +313,7 @@ func TestUpdateDataset_UserProperties(t *testing.T) {
 	var params []any
 	assertNoError(t, json.Unmarshal(requests[0].Params, &params))
 	updates := params[1].(map[string]any)
-	userProperties := updates["user_properties"].([]any)
+	userProperties := updates["user_properties_update"].([]any)
 	assertLen(t, userProperties, 1)
 	property := userProperties[0].(map[string]any)
 	assertEqual(t, property["key"], "truenas-csi:detached_snapshot")

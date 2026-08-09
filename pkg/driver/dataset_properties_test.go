@@ -126,10 +126,10 @@ func TestDatasetDescriptionUpdateOptions(t *testing.T) {
 	if options == nil {
 		t.Fatal("description template did not return update options")
 	}
-	if len(options.UserProperties) != 1 {
-		t.Fatalf("got %d user properties, want 1", len(options.UserProperties))
+	if len(options.UserPropertiesUpdate) != 1 {
+		t.Fatalf("got %d user properties, want 1", len(options.UserPropertiesUpdate))
 	}
-	property := options.UserProperties[0]
+	property := options.UserPropertiesUpdate[0]
 	if property["key"] != datasetDescriptionProperty {
 		t.Fatalf("property key = %q, want %q", property["key"], datasetDescriptionProperty)
 	}

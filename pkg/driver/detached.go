@@ -385,7 +385,7 @@ func (s *ControllerServer) cloneDetachedVolume(ctx context.Context, sourceDatase
 
 func (s *ControllerServer) markDetachedSnapshot(ctx context.Context, datasetPath string) error {
 	return s.driver.Client().UpdateDataset(ctx, datasetPath, &client.DatasetUpdateOptions{
-		UserProperties: []map[string]string{{
+		UserPropertiesUpdate: []map[string]string{{
 			"key":   detachedSnapshotProperty,
 			"value": detachedSnapshotPropertyValue,
 		}},
