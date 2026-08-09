@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.3](https://github.com/ishioni/ix-csi/compare/1.5.2...1.5.3) (2026-08-09)
+
+
+### Bug Fixes
+
+* configure Grafana dashboard operator resource ([#31](https://github.com/ishioni/ix-csi/issues/31)) ([a7dc296](https://github.com/ishioni/ix-csi/commit/a7dc296afc9d30594b0cb0ed02eedd984e55944c))
+* use TrueNAS dataset property schema ([#29](https://github.com/ishioni/ix-csi/issues/29)) ([efc38f1](https://github.com/ishioni/ix-csi/commit/efc38f1b6e451032460756d890a523a1f82fbce9))
+
 ## [1.5.2](https://github.com/ishioni/ix-csi/compare/1.5.1...1.5.2) (2026-08-09)
 
 
