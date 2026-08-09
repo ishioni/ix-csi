@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/ishioni/ix-csi/compare/1.4.0...1.5.0) (2026-08-09)
+
+
+### Features
+
+* add Prometheus metrics ([#23](https://github.com/ishioni/ix-csi/issues/23)) ([c0d65ba](https://github.com/ishioni/ix-csi/commit/c0d65bae6a3b51840b6dadefe5d45f5751884df6))
+* support templated TrueNAS dataset descriptions ([#21](https://github.com/ishioni/ix-csi/issues/21)) ([eeddd0d](https://github.com/ishioni/ix-csi/commit/eeddd0d8173805091d640a8a580c611ae231b8e1))
+
 ## [1.4.0](https://github.com/ishioni/ix-csi/compare/1.3.3...1.4.0) (2026-08-05)
 
 
