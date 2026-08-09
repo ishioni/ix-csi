@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.4](https://github.com/ishioni/ix-csi/compare/1.5.3...1.5.4) (2026-08-09)
+
+
+### Bug Fixes
+
+* use update user properties API field ([#32](https://github.com/ishioni/ix-csi/issues/32)) ([09a01af](https://github.com/ishioni/ix-csi/commit/09a01af03f08b368cf8fe71deb4204061f0fb1c4))
+
 ## [1.5.3](https://github.com/ishioni/ix-csi/compare/1.5.2...1.5.3) (2026-08-09)
 
 
