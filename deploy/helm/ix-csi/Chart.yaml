@@ -1,6 +1,6 @@
 apiVersion: v2
-name: truenas-csi
-description: Helm chart for deploying the TrueNAS CSI driver
+name: ix-csi
+description: Helm chart for deploying the ix-csi driver
 home: https://github.com/ishioni/ix-csi
 type: application
 # version + appVersion are overridden at package time from the release tag.
@@ -15,4 +15,4 @@ keywords:
 sources:
   - https://github.com/ishioni/ix-csi
 maintainers:
-  - name: truenas-csi
+  - name: ix-csi

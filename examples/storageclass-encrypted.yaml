@@ -4,7 +4,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: truenas-nfs-encrypted
-provisioner: csi.truenas.io
+provisioner: csi.ix-csi.io
 parameters:
   protocol: "nfs"
   compression: "LZ4"

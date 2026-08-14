@@ -34,7 +34,7 @@ reintroducing a dependency or allowing a normal volume to be provisioned in
 the detached namespace.
 
 Detached snapshot datasets are identified with the ZFS user property
-`truenas-csi:detached_snapshot=true`. The driver does not use the TrueNAS
+`ix-csi:detached_snapshot=true`. The driver does not use the TrueNAS
 dataset comments field for this metadata. Unmarked datasets are ignored as
 detached snapshots, and an unmarked dataset at an exact CSI-derived target
 path is rejected as a collision rather than adopted or deleted.

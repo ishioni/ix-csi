@@ -39,7 +39,7 @@ CLAUDE.md
 test-deploy.yaml
 
 # Design Plan
-truenas-csi-plan.md
+ix-csi-plan.md
 
 # Build artifacts
 bin/

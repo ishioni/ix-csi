@@ -2,10 +2,10 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-controller
+  name: {{ include "ix-csi.fullname" . }}-controller
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     {{- with .Values.metrics.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -20,7 +20,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      {{- include "truenas-csi.selectorLabels" . | nindent 6 }}
+      {{- include "ix-csi.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: controller
   endpoints:
     - port: metrics
@@ -47,10 +47,10 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-node
+  name: {{ include "ix-csi.fullname" . }}-node
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     {{- with .Values.metrics.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -65,7 +65,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      {{- include "truenas-csi.selectorLabels" . | nindent 6 }}
+      {{- include "ix-csi.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: node
   endpoints:
     - port: metrics

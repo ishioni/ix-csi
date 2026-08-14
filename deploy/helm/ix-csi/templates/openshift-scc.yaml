@@ -3,9 +3,9 @@
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-node
+  name: {{ include "ix-csi.fullname" . }}-node
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
 allowPrivilegedContainer: true
 allowHostIPC: true
@@ -32,14 +32,14 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "truenas-csi.nodeServiceAccountName" . }}
+  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "ix-csi.nodeServiceAccountName" . }}
 ---
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-controller
+  name: {{ include "ix-csi.fullname" . }}-controller
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
 allowPrivilegedContainer: false
 allowHostNetwork: false
@@ -61,5 +61,5 @@ volumes:
   - projected
   - secret
 users:
-  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "truenas-csi.controllerServiceAccountName" . }}
+  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "ix-csi.controllerServiceAccountName" . }}
 {{- end }}

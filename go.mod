@@ -1,4 +1,4 @@
-module github.com/truenas/truenas-csi
+module github.com/ishioni/ix-csi
 
 go 1.25.0
 

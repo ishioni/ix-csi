@@ -1,9 +1,9 @@
 apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
-  name: {{ include "truenas-csi.driverName" . }}
+  name: {{ include "ix-csi.driverName" . }}
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
 spec:
   attachRequired: true
   podInfoOnMount: true

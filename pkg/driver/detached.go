@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/truenas/truenas-csi/pkg/client"
+	"github.com/ishioni/ix-csi/pkg/client"
 )
 
 const (
 	detachedSnapshotSourcePrefix  = "csi-detached-snapshot-"
 	detachedVolumeSourcePrefix    = "csi-detached-volume-"
-	detachedSnapshotProperty      = "truenas-csi:detached_snapshot"
+	detachedSnapshotProperty      = "ix-csi:detached_snapshot"
 	detachedSnapshotPropertyValue = "true"
 )
 
@@ -308,7 +308,7 @@ func (s *ControllerServer) cloneDetachedSnapshot(ctx context.Context, snapshotID
 		return err
 	}
 	if !isDetachedSnapshotDataset(dataset) {
-		return fmt.Errorf("detached source snapshot %s is not managed by truenas-csi", snapshotID)
+		return fmt.Errorf("detached source snapshot %s is not managed by ix-csi", snapshotID)
 	}
 	tempName := detachedVolumeSourcePrefix + SanitizeVolumeName(strings.ReplaceAll(sourceVolumeID, "/", "-"))
 	tempSnapshotID, err := s.createTemporarySnapshot(ctx, sourceDataset, tempName)
@@ -343,7 +343,7 @@ func (s *ControllerServer) createDetachedSnapshot(ctx context.Context, sourceVol
 
 	if existing, err := s.driver.Client().GetDataset(ctx, targetDataset); err == nil && existing != nil {
 		if !isDetachedSnapshotDataset(existing) {
-			return "", fmt.Errorf("detached snapshot target %s already exists and is not managed by truenas-csi", targetDataset)
+			return "", fmt.Errorf("detached snapshot target %s already exists and is not managed by ix-csi", targetDataset)
 		}
 		return detachedID, nil
 	} else if err != nil && !client.IsNotFoundError(err) {

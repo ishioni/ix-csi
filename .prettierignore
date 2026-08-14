@@ -1,9 +1,9 @@
 *.toml
 CHANGELOG.md
 .release-please-manifest.json
-deploy/helm/truenas-csi/README.md
-deploy/helm/truenas-csi/values.schema.json
-deploy/helm/truenas-csi/templates/**
+deploy/helm/ix-csi/README.md
+deploy/helm/ix-csi/values.schema.json
+deploy/helm/ix-csi/templates/**
 operator/bundle/**
 operator/config/**
 operator/ocp-install/**

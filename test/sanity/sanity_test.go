@@ -10,8 +10,8 @@ import (
 	"time"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/ishioni/ix-csi/pkg/driver"
 	sanity "github.com/kubernetes-csi/csi-test/v5/pkg/sanity"
-	"github.com/truenas/truenas-csi/pkg/driver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/klog/v2/textlogger"
@@ -25,7 +25,7 @@ const (
 	defaultTestPool = "tank"
 )
 
-// TestSanity runs the CSI sanity test suite against the TrueNAS CSI driver.
+// TestSanity runs the CSI sanity test suite against the ix-csi driver.
 // This is an integration test that requires a real TrueNAS instance.
 //
 // Required environment variables:
@@ -409,7 +409,7 @@ func TestNVMeOFBlockVolume(t *testing.T) {
 	// buffer avoids block-device alignment constraints).
 	const pageSize = 4096
 	want := make([]byte, pageSize)
-	copy(want, []byte("truenas-csi-nvmeof-block-readwrite-check"))
+	copy(want, []byte("ix-csi-nvmeof-block-readwrite-check"))
 	f, err := os.OpenFile(targetPath, os.O_RDWR, 0)
 	if err != nil {
 		t.Fatalf("open block device: %v", err)

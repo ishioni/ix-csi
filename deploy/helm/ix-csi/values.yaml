@@ -166,9 +166,9 @@ storageClasses: []
 # For example, an iSCSI CHAP StorageClass can use:
 #      iscsi.chapUser: chapuser
 #      csi.storage.k8s.io/provisioner-secret-name: truenas-iscsi-chap
-#      csi.storage.k8s.io/provisioner-secret-namespace: truenas-csi
+#      csi.storage.k8s.io/provisioner-secret-namespace: ix-csi
 #      csi.storage.k8s.io/node-stage-secret-name: truenas-iscsi-chap
-#      csi.storage.k8s.io/node-stage-secret-namespace: truenas-csi
+#      csi.storage.k8s.io/node-stage-secret-namespace: ix-csi
 # The controller ClusterRole above grants the provisioner access to resolve
 # controller-side secrets. Kubelet resolves node-stage secrets.
 

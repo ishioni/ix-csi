@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-node
+  name: {{ include "ix-csi.fullname" . }}-node
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
 spec:
   selector:
     matchLabels:
-      {{- include "truenas-csi.selectorLabels" . | nindent 6 }}
+      {{- include "ix-csi.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: node
 
   template:
     metadata:
       labels:
-        {{- include "truenas-csi.selectorLabels" . | nindent 8 }}
+        {{- include "ix-csi.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: node
         {{- with .Values.node.podLabels }}
         {{- toYaml . | nindent 8 }}
@@ -27,7 +27,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "truenas-csi.nodeServiceAccountName" . }}
+      serviceAccountName: {{ include "ix-csi.nodeServiceAccountName" . }}
       hostNetwork: true
       hostPID: true
       hostIPC: true
@@ -52,7 +52,7 @@ spec:
       {{- end }}
       containers:
         - name: csi-node
-          image: {{ include "truenas-csi.image" (dict "root" . "component" .Values.node) | quote }}
+          image: {{ include "ix-csi.image" (dict "root" . "component" .Values.node) | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           lifecycle:
             postStart:
@@ -75,7 +75,7 @@ spec:
             - --endpoint=$(CSI_ENDPOINT)
             - --node-id=$(NODE_ID)
             - --mode=node
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             {{- if .Values.metrics.enabled }}
             - --metrics-addr=:{{ .Values.metrics.port }}
             {{- end }}
@@ -95,14 +95,14 @@ spec:
             - name: TRUENAS_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "truenas-csi.secretName" . }}
-                  key: {{ include "truenas-csi.secretKey" . }}
+                  name: {{ include "ix-csi.secretName" . }}
+                  key: {{ include "ix-csi.secretKey" . }}
             {{- with .Values.node.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           envFrom:
             - configMapRef:
-                name: {{ include "truenas-csi.configMapName" . }}
+                name: {{ include "ix-csi.configMapName" . }}
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -141,12 +141,12 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
           env:
             - name: ADDRESS
               value: /csi/csi.sock
             - name: DRIVER_REG_SOCK_PATH
-              value: {{ printf "%s/plugins/%s/csi.sock" .Values.node.kubeletRootDir (include "truenas-csi.driverName" .) }}
+              value: {{ printf "%s/plugins/%s/csi.sock" .Values.node.kubeletRootDir (include "ix-csi.driverName" .) }}
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -158,7 +158,7 @@ spec:
           args:
             - --csi-address=/csi/csi.sock
             - --health-port=9808
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -170,7 +170,7 @@ spec:
             type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
-            path: {{ printf "%s/plugins/%s" .Values.node.kubeletRootDir (include "truenas-csi.driverName" .) }}
+            path: {{ printf "%s/plugins/%s" .Values.node.kubeletRootDir (include "ix-csi.driverName" .) }}
             type: DirectoryOrCreate
         - name: kubelet-dir
           hostPath:

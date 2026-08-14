@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/truenas/truenas-csi/pkg/client"
+	"github.com/ishioni/ix-csi/pkg/client"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -70,7 +70,7 @@ const (
 
 	// managedSnapshotProperty identifies CSI snapshots that must retain their
 	// source dataset, including VolumeSnapshots and temporary clone origins.
-	managedSnapshotProperty      = "truenas-csi:managed"
+	managedSnapshotProperty      = "ix-csi:managed"
 	managedSnapshotPropertyValue = "true"
 	volumeCloneSnapshotPrefix    = "csi-clone-"
 )
@@ -2382,7 +2382,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			return nil, status.Errorf(codes.Internal, "failed to find detached snapshot: %v", getErr)
 		}
 		if !isDetachedSnapshotDataset(dataset) {
-			return nil, status.Errorf(codes.FailedPrecondition, "dataset %s is not a truenas-csi detached snapshot", targetDataset)
+			return nil, status.Errorf(codes.FailedPrecondition, "dataset %s is not a ix-csi detached snapshot", targetDataset)
 		}
 		err = s.driver.Client().DeleteDataset(ctx, targetDataset, &client.DatasetDeleteOptions{Recursive: true, Force: true})
 		if err != nil && !client.IsNotFoundError(err) {

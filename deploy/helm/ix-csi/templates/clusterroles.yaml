@@ -2,9 +2,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-controller
+  name: {{ include "ix-csi.fullname" . }}-controller
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
 rules:
   # Required by external-provisioner to resolve the provisioner Secret
   # referenced by CSI StorageClass parameters. Sensitive iSCSI CHAP, NVMe-oF
@@ -65,9 +65,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-node
+  name: {{ include "ix-csi.fullname" . }}-node
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["nodes"]

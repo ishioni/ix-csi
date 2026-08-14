@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "truenas-csi.fullname" . }}-controller
+  name: {{ include "ix-csi.fullname" . }}-controller
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "truenas-csi.labels" . | nindent 4 }}
+    {{- include "ix-csi.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
 spec:
   replicas: {{ .Values.controller.replicas }}
   selector:
     matchLabels:
-      {{- include "truenas-csi.selectorLabels" . | nindent 6 }}
+      {{- include "ix-csi.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: controller
 
   template:
     metadata:
       labels:
-        {{- include "truenas-csi.selectorLabels" . | nindent 8 }}
+        {{- include "ix-csi.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: controller
         {{- with .Values.controller.podLabels }}
         {{- toYaml . | nindent 8 }}
@@ -28,7 +28,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "truenas-csi.controllerServiceAccountName" . }}
+      serviceAccountName: {{ include "ix-csi.controllerServiceAccountName" . }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -50,13 +50,13 @@ spec:
       {{- end }}
       containers:
         - name: csi-controller
-          image: {{ include "truenas-csi.image" (dict "root" . "component" .Values.controller) | quote }}
+          image: {{ include "ix-csi.image" (dict "root" . "component" .Values.controller) | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --node-id=$(NODE_ID)
             - --mode=controller
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             {{- if .Values.metrics.enabled }}
             - --metrics-addr=:{{ .Values.metrics.port }}
             {{- end }}
@@ -88,14 +88,14 @@ spec:
             - name: TRUENAS_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "truenas-csi.secretName" . }}
-                  key: {{ include "truenas-csi.secretKey" . }}
+                  name: {{ include "ix-csi.secretName" . }}
+                  key: {{ include "ix-csi.secretKey" . }}
             {{- with .Values.controller.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           envFrom:
             - configMapRef:
-                name: {{ include "truenas-csi.configMapName" . }}
+                name: {{ include "ix-csi.configMapName" . }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -116,7 +116,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-provisioner:v6.1.1
           args:
             - --csi-address=$(ADDRESS)
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             - --feature-gates=Topology=true
             - --extra-create-metadata
             - --leader-election=true
@@ -142,7 +142,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-attacher:v4.11.0
           args:
             - --csi-address=$(ADDRESS)
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
             {{- if .Values.metrics.enabled }}
@@ -165,7 +165,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-snapshotter:v8.5.0
           args:
             - --csi-address=$(ADDRESS)
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
             {{- if .Values.metrics.enabled }}
@@ -188,7 +188,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-resizer:v2.1.0
           args:
             - --csi-address=$(ADDRESS)
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
             - --leader-election=true
             - --timeout=60s
             {{- if .Values.metrics.enabled }}
@@ -212,7 +212,7 @@ spec:
           args:
             - --csi-address=/csi/csi.sock
             - --health-port=9808
-            - --v={{ include "truenas-csi.logVerbosity" . }}
+            - --v={{ include "ix-csi.logVerbosity" . }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

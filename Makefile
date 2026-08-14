@@ -1,15 +1,15 @@
-# TrueNAS CSI Driver Makefile
+# ix-csi Makefile
 # Includes targets for standard Kubernetes and OpenShift certification builds
 
 # Image configuration
-REGISTRY ?= quay.io/truenas_solutions
-DRIVER_IMAGE ?= $(REGISTRY)/truenas-csi
+REGISTRY ?= ghcr.io/ishioni
+DRIVER_IMAGE ?= $(REGISTRY)/ix-csi
 VERSION ?= 1.1.2
 IMG_TAG ?= v$(VERSION)
 
 # Go configuration
 GO ?= go
-LDFLAGS ?= -X github.com/truenas/truenas-csi/pkg/driver.DRIVER_VERSION=$(IMG_TAG)
+LDFLAGS ?= -X github.com/ishioni/ix-csi/pkg/driver.DRIVER_VERSION=$(IMG_TAG)
 GOFLAGS ?= -v
 
 .PHONY: all
@@ -25,7 +25,7 @@ help: ## Display this help
 
 .PHONY: build
 build: ## Build the CSI driver binary
-	$(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o bin/truenas-csi cmd/main.go
+	$(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o bin/ix-csi cmd/main.go
 
 .PHONY: test
 test: ## Run unit tests

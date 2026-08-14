@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# TrueNAS CSI Driver - Simplified Demo
+# ix-csi - Simplified Demo
 # This demo focuses on volume provisioning without pod mounting
 # Perfect for environments where mounting is problematic (WSL, VM networking, etc.)
 
-CLUSTER_NAME="${KIND_CLUSTER_NAME:-truenas-csi-demo}"
-NAMESPACE="truenas-csi"
+CLUSTER_NAME="${KIND_CLUSTER_NAME:-ix-csi-demo}"
+NAMESPACE="ix-csi"
 DEMO_NAMESPACE="demo"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CHART_DIR="${SCRIPT_DIR}/deploy/helm/truenas-csi"
+CHART_DIR="${SCRIPT_DIR}/deploy/helm/ix-csi"
 
 TRUENAS_URL="${TRUENAS_URL:-wss://truenas.example.com/api/current}"
 TRUENAS_INSECURE="${TRUENAS_INSECURE:-true}"
@@ -188,21 +188,21 @@ build_and_load_image() {
     print_header "Building and Loading CSI Driver Image"
 
     print_info "Building Docker image..."
-    docker build -t ghcr.io/truenas/truenas-csi:latest .
+    docker build -t ghcr.io/ishioni/ix-csi:latest .
     print_success "Image built successfully"
 
     print_info "Loading image into Kind cluster..."
-    kind load docker-image ghcr.io/truenas/truenas-csi:latest --name ${CLUSTER_NAME}
+    kind load docker-image ghcr.io/ishioni/ix-csi:latest --name ${CLUSTER_NAME}
     print_success "Image loaded into cluster"
 }
 
 # Deploy CSI driver
 deploy_driver() {
-    print_header "Deploying TrueNAS CSI Driver"
+    print_header "Deploying ix-csi"
 
     print_info "Installing the local Helm chart..."
 
-    helm upgrade --install truenas-csi "${CHART_DIR}" \
+    helm upgrade --install ix-csi "${CHART_DIR}" \
         --namespace "${NAMESPACE}" \
         --create-namespace \
         --set image.tag=latest \
@@ -289,7 +289,7 @@ apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
   name: truenas-snapshot-class
-driver: csi.truenas.io
+driver: csi.ix-csi.io
 deletionPolicy: Delete
 EOF
 
@@ -312,7 +312,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: truenas-nfs
-provisioner: csi.truenas.io
+provisioner: csi.ix-csi.io
 parameters:
   protocol: "nfs"
   pool: "${TRUENAS_POOL}"
@@ -331,7 +331,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: truenas-iscsi
-provisioner: csi.truenas.io
+provisioner: csi.ix-csi.io
 parameters:
   protocol: "iscsi"
   pool: "${TRUENAS_POOL}"
@@ -1159,7 +1159,7 @@ demo_capabilities() {
     echo ""
 
     print_step "2. Driver Information"
-    echo "Driver Name: csi.truenas.io"
+    echo "Driver Name: csi.ix-csi.io"
     echo "Driver Version: 1.0.0"
     echo ""
 
@@ -1223,7 +1223,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: truenas-nfs-gzip
-provisioner: csi.truenas.io
+provisioner: csi.ix-csi.io
 parameters:
   protocol: "nfs"
   pool: "tank"
@@ -1425,7 +1425,7 @@ spec:
     - -c
     - |
       echo "Writing test files..."
-      echo "Hello from TrueNAS CSI!" > /data/test.txt
+      echo "Hello from ix-csi!" > /data/test.txt
       echo "This is file number 1" > /data/file1.txt
       echo "This is file number 2" > /data/file2.txt
       dd if=/dev/urandom of=/data/random.dat bs=1M count=10
@@ -1612,7 +1612,7 @@ cleanup() {
 main_menu() {
     while true; do
         clear
-        print_header "TrueNAS CSI Driver - Simplified Demo"
+        print_header "ix-csi - Simplified Demo"
 
         # echo -e "${BOLD}This demo shows CSI driver features WITHOUT pod mounting${NC}"
         # echo "Perfect for WSL, VMs, or environments with networking issues"
@@ -1673,7 +1673,7 @@ main_menu() {
 
 # Main execution
 main() {
-    print_header "TrueNAS CSI Driver - Simplified Demo"
+    print_header "ix-csi - Simplified Demo"
 
     # Run setup if cluster/driver don't exist
     run_setup_if_needed
