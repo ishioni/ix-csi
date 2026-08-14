@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/ishioni/ix-csi/compare/1.5.4...1.6.0) (2026-08-14)
+
+
+### Features
+
+* refresh Grafana dashboard layout ([#34](https://github.com/ishioni/ix-csi/issues/34)) ([b72a18a](https://github.com/ishioni/ix-csi/commit/b72a18ae777d8dd8aae95ccc462768f668cc353e))
+* rename project to ix-csi ([#36](https://github.com/ishioni/ix-csi/issues/36)) ([da088c0](https://github.com/ishioni/ix-csi/commit/da088c0ef0fda962681ad2d05525e13bce75da92))
+
 ## [1.5.4](https://github.com/ishioni/ix-csi/compare/1.5.3...1.5.4) (2026-08-09)
 
 
