@@ -1,10 +1,10 @@
-# TrueNAS CSI Driver - Demo Guide
+# ix-csi - Demo Guide
 
-This guide will help you run the TrueNAS CSI driver demo on a local Kubernetes cluster.
+This guide will help you run the ix-csi driver demo on a local Kubernetes cluster.
 
 ## Overview
 
-The `demo-simple.sh` script provides an interactive demonstration of the TrueNAS CSI driver's capabilities:
+The `demo-simple.sh` script provides an interactive demonstration of the ix-csi driver's capabilities:
 
 - NFS volume provisioning
 - iSCSI volume provisioning
@@ -228,7 +228,7 @@ Your `TRUENAS_ISCSI_IQN_BASE` value has an invalid format. It must:
 Check driver logs from the menu (Option 14) or:
 
 ```bash
-kubectl logs -n truenas-csi -l app.kubernetes.io/component=controller -c csi-controller
+kubectl logs -n ix-csi -l app.kubernetes.io/component=controller -c csi-controller
 ```
 
 Common causes:
@@ -248,7 +248,7 @@ From the menu, choose **Option 15** to delete all demo PVCs while keeping the dr
 
 ```bash
 # Delete the entire Kind cluster
-kind delete cluster --name truenas-csi-demo
+kind delete cluster --name ix-csi-demo
 ```
 
 This removes the cluster and all associated resources. TrueNAS datasets/shares will be deleted automatically (due to `reclaimPolicy: Delete`).
@@ -263,8 +263,8 @@ For production use on a real Kubernetes cluster:
 4. **Use TLS** (wss://) for TrueNAS connection
 5. **Deploy**:
    ```bash
-   helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
-     --namespace truenas-csi \
+   helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
+     --namespace ix-csi \
      --create-namespace \
      --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
      --set config.truenasInsecure=false \

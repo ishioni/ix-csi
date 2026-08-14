@@ -176,7 +176,7 @@ func TestGetDataset_UserProperties(t *testing.T) {
 
 	result := MockDataset("tank/detached/source/snapshot", "snapshot", "tank", 2000, 8000, 50000)
 	result["user_properties"] = map[string]string{
-		"truenas-csi:detached_snapshot": "true",
+		"ix-csi:detached_snapshot": "true",
 	}
 	mock.SetResponse(methodDatasetGet, MockResponse{Result: result})
 
@@ -185,7 +185,7 @@ func TestGetDataset_UserProperties(t *testing.T) {
 
 	assertNoError(t, err)
 	assertNotNil(t, dataset)
-	assertEqual(t, dataset.UserProperties["truenas-csi:detached_snapshot"], "true")
+	assertEqual(t, dataset.UserProperties["ix-csi:detached_snapshot"], "true")
 
 	requests := mock.GetRequestsByMethod(methodDatasetGet)
 	assertLen(t, requests, 1)
@@ -258,7 +258,7 @@ func TestListDatasets_UserProperties(t *testing.T) {
 
 	dataset := MockDataset("tank/detached/source/snapshot", "snapshot", "tank", 100, 900, 0)
 	dataset["user_properties"] = map[string]string{
-		"truenas-csi:detached_snapshot": "true",
+		"ix-csi:detached_snapshot": "true",
 	}
 	mock.SetResponse(methodDatasetQuery, MockResponse{
 		Result: []map[string]any{dataset},
@@ -269,7 +269,7 @@ func TestListDatasets_UserProperties(t *testing.T) {
 
 	assertNoError(t, err)
 	assertLen(t, datasets, 1)
-	assertEqual(t, datasets[0].UserProperties["truenas-csi:detached_snapshot"], "true")
+	assertEqual(t, datasets[0].UserProperties["ix-csi:detached_snapshot"], "true")
 }
 
 func TestUpdateDataset_Success(t *testing.T) {
@@ -301,7 +301,7 @@ func TestUpdateDataset_UserProperties(t *testing.T) {
 	client := connectTestClient(t, mock)
 	err := client.UpdateDataset(testContext(t), "tank/detached/source/snapshot", &DatasetUpdateOptions{
 		UserPropertiesUpdate: []map[string]string{{
-			"key":   "truenas-csi:detached_snapshot",
+			"key":   "ix-csi:detached_snapshot",
 			"value": "true",
 		}},
 	})
@@ -316,7 +316,7 @@ func TestUpdateDataset_UserProperties(t *testing.T) {
 	userProperties := updates["user_properties_update"].([]any)
 	assertLen(t, userProperties, 1)
 	property := userProperties[0].(map[string]any)
-	assertEqual(t, property["key"], "truenas-csi:detached_snapshot")
+	assertEqual(t, property["key"], "ix-csi:detached_snapshot")
 	assertEqual(t, property["value"], "true")
 }
 
@@ -980,7 +980,7 @@ func TestCreateSnapshotWithProperties(t *testing.T) {
 	})
 
 	client := connectTestClient(t, mock)
-	_, err := client.CreateSnapshotWithProperties(testContext(t), "tank/data", "snap1", false, map[string]string{"truenas-csi:managed": "true"})
+	_, err := client.CreateSnapshotWithProperties(testContext(t), "tank/data", "snap1", false, map[string]string{"ix-csi:managed": "true"})
 	assertNoError(t, err)
 
 	requests := mock.GetRequestsByMethod(methodSnapshotCreate)
@@ -989,7 +989,7 @@ func TestCreateSnapshotWithProperties(t *testing.T) {
 	json.Unmarshal(requests[0].Params, &params)
 	opts := params[0].(map[string]any)
 	properties := opts["properties"].(map[string]any)
-	assertEqual(t, properties["truenas-csi:managed"], "true")
+	assertEqual(t, properties["ix-csi:managed"], "true")
 }
 
 func TestDeleteSnapshot_Success(t *testing.T) {
@@ -1021,7 +1021,7 @@ func TestListSnapshots_Success(t *testing.T) {
 
 	managedSnapshot := MockSnapshot("tank/data@snap1", "tank/data", "snap1")
 	managedSnapshot.Properties = map[string]any{
-		"truenas-csi:managed": map[string]any{"value": "true"},
+		"ix-csi:managed": map[string]any{"value": "true"},
 	}
 	mock.SetResponse(methodSnapshotQuery, MockResponse{
 		Result: []Snapshot{
@@ -1038,7 +1038,7 @@ func TestListSnapshots_Success(t *testing.T) {
 	assertLen(t, snapshots, 2)
 	assertEqual(t, snapshots[0].Name, "snap1")
 	assertEqual(t, snapshots[1].Name, "snap2")
-	property := snapshots[0].Properties["truenas-csi:managed"].(map[string]any)
+	property := snapshots[0].Properties["ix-csi:managed"].(map[string]any)
 	assertEqual(t, property["value"].(string), "true")
 
 	requests := mock.GetRequestsByMethod(methodSnapshotQuery)

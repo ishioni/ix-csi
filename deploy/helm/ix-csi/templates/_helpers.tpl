@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "truenas-csi.name" -}}
+{{- define "ix-csi.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
@@ -9,7 +9,7 @@ Expand the name of the chart.
 Create a default fully qualified app name.
 Truncated at 63 chars (k8s name limit, DNS-1123).
 */}}
-{{- define "truenas-csi.fullname" -}}
+{{- define "ix-csi.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -22,50 +22,50 @@ Truncated at 63 chars (k8s name limit, DNS-1123).
 {{- end -}}
 {{- end -}}
 
-{{- define "truenas-csi.labels" -}}
-app.kubernetes.io/name: {{ include "truenas-csi.name" . }}
+{{- define "ix-csi.labels" -}}
+app.kubernetes.io/name: {{ include "ix-csi.name" . }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
-{{- define "truenas-csi.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "truenas-csi.name" . }}
+{{- define "ix-csi.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "ix-csi.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{- define "truenas-csi.driverName" -}}
-csi.truenas.io
+{{- define "ix-csi.driverName" -}}
+csi.ix-csi.io
 {{- end -}}
 
-{{- define "truenas-csi.controllerServiceAccountName" -}}
+{{- define "ix-csi.controllerServiceAccountName" -}}
 {{- if .Values.serviceAccount.controller.name -}}
 {{- .Values.serviceAccount.controller.name -}}
 {{- else -}}
-{{- printf "%s-controller" (include "truenas-csi.fullname" .) -}}
+{{- printf "%s-controller" (include "ix-csi.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "truenas-csi.nodeServiceAccountName" -}}
+{{- define "ix-csi.nodeServiceAccountName" -}}
 {{- if .Values.serviceAccount.node.name -}}
 {{- .Values.serviceAccount.node.name -}}
 {{- else -}}
-{{- printf "%s-node" (include "truenas-csi.fullname" .) -}}
+{{- printf "%s-node" (include "ix-csi.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "truenas-csi.secretName" -}}
+{{- define "ix-csi.secretName" -}}
 {{- if .Values.secret.existingSecret.name -}}
 {{- .Values.secret.existingSecret.name -}}
 {{- else if .Values.secret.name -}}
 {{- .Values.secret.name -}}
 {{- else -}}
-{{- printf "%s-credentials" (include "truenas-csi.fullname" .) -}}
+{{- printf "%s-credentials" (include "ix-csi.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "truenas-csi.secretKey" -}}
+{{- define "ix-csi.secretKey" -}}
 {{- if .Values.secret.existingSecret.name -}}
 {{- default "TRUENAS_API_KEY" .Values.secret.existingSecret.key -}}
 {{- else -}}
@@ -73,8 +73,8 @@ TRUENAS_API_KEY
 {{- end -}}
 {{- end -}}
 
-{{- define "truenas-csi.configMapName" -}}
-{{- printf "%s-config" (include "truenas-csi.fullname" .) -}}
+{{- define "ix-csi.configMapName" -}}
+{{- printf "%s-config" (include "ix-csi.fullname" .) -}}
 {{- end -}}
 
 {{/*
@@ -82,7 +82,7 @@ Resolve a driver image reference. A component-specific tag or digest takes
 precedence over the chart-wide digest so controller and node PR images can be
 tested independently of the release pin.
 */}}
-{{- define "truenas-csi.image" -}}
+{{- define "ix-csi.image" -}}
 {{- $componentImage := default (dict) .component.image -}}
 {{- if $componentImage.digest -}}
 {{- printf "%s@%s" .root.Values.image.repository $componentImage.digest -}}
@@ -98,7 +98,7 @@ tested independently of the release pin.
 {{/*
 Translate the chart's human-readable log level into Kubernetes klog verbosity.
 */}}
-{{- define "truenas-csi.logVerbosity" -}}
+{{- define "ix-csi.logVerbosity" -}}
 {{- $levels := dict "error" 0 "warning" 1 "info" 2 "debug" 4 -}}
 {{- $level := required "logLevel must be one of: error, warning, info, debug" .Values.logLevel -}}
 {{- if not (hasKey $levels $level) -}}

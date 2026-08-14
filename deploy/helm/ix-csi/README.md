@@ -1,8 +1,8 @@
-# truenas-csi
+# ix-csi
 
 ![Version: 0.0.0](https://img.shields.io/badge/Version-0.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.0](https://img.shields.io/badge/AppVersion-0.0.0-informational?style=flat-square)
 
-Helm chart for deploying the TrueNAS CSI driver
+Helm chart for deploying the ix-csi driver
 
 **Homepage:** <https://github.com/ishioni/ix-csi>
 
@@ -10,7 +10,7 @@ Helm chart for deploying the TrueNAS CSI driver
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| truenas-csi |  |  |
+| ix-csi |  |  |
 
 ## Source Code
 

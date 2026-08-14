@@ -27,7 +27,7 @@ const (
 	paramPersistentSessions = "iscsi.persistentSessions"
 
 	// Directory for storing csi-lib-iscsi connector files
-	connectorDir = "/var/lib/truenas-csi/connectors"
+	connectorDir = "/var/lib/ix-csi/connectors"
 
 	// iSCSI connection settings
 	iscsiRetryCount    = 10 // number of login attempts

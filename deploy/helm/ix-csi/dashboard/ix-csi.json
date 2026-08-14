@@ -444,7 +444,7 @@
       "id": 10,
       "targets": [
         {
-          "expr": "sum by (method_name, container) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.truenas.io\"}[$__rate_interval]))",
+          "expr": "sum by (method_name, container) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.ix-csi.io\"}[$__rate_interval]))",
           "legendFormat": "{{container}} / {{method_name}}",
           "refId": "A"
         }
@@ -528,7 +528,7 @@
       "id": 11,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (method_name, container, le) (rate(csi_sidecar_operations_seconds_bucket{driver_name=\"csi.truenas.io\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (method_name, container, le) (rate(csi_sidecar_operations_seconds_bucket{driver_name=\"csi.ix-csi.io\"}[$__rate_interval])))",
           "legendFormat": "{{container}} / {{method_name}} p95",
           "refId": "A"
         }
@@ -556,7 +556,7 @@
       "id": 12,
       "targets": [
         {
-          "expr": "sum by (method_name, container, grpc_status_code) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.truenas.io\",grpc_status_code!=\"OK\"}[$__rate_interval]))",
+          "expr": "sum by (method_name, container, grpc_status_code) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.ix-csi.io\",grpc_status_code!=\"OK\"}[$__rate_interval]))",
           "legendFormat": "{{container}} / {{method_name}} {{grpc_status_code}}",
           "refId": "A"
         }
@@ -586,7 +586,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "TrueNAS CSI Driver",
+  "title": "ix-csi",
   "uid": "ix-csi",
   "version": 1,
   "weekStart": ""

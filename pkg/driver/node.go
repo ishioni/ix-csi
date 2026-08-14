@@ -376,7 +376,7 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 		// constrained to a pool's node label. Only the per-node key is advertised.
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				"topology.truenas.io/node": s.driver.NodeID(),
+				"topology.ix-csi.io/node": s.driver.NodeID(),
 			},
 		},
 	}, nil

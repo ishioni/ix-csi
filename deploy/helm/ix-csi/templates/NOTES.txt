@@ -1,12 +1,12 @@
-TrueNAS CSI has been deployed.
+ix-csi has been deployed.
 
 Namespace: {{ .Release.Namespace }}
-Driver:    {{ include "truenas-csi.driverName" . }}
+Driver:    {{ include "ix-csi.driverName" . }}
 Image:     {{ .Values.image.repository }}:{{ .Values.image.tag }}
 
 Check rollout status:
   kubectl get pods -n {{ .Release.Namespace }}
-  kubectl get csidriver {{ include "truenas-csi.driverName" . }}
+  kubectl get csidriver {{ include "ix-csi.driverName" . }}
 
 If you enabled chart-managed classes:
   kubectl get storageclass

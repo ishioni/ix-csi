@@ -17,7 +17,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-logr/logr"
-	"github.com/truenas/truenas-csi/pkg/client"
+	"github.com/ishioni/ix-csi/pkg/client"
 	"google.golang.org/grpc"
 	"k8s.io/mount-utils"
 )
@@ -26,7 +26,7 @@ import (
 var DRIVER_VERSION = "dev"
 
 const (
-	DRIVER_NAME = "csi.truenas.io"
+	DRIVER_NAME = "csi.ix-csi.io"
 
 	DEFAULT_IQN_BASE = "iqn.2000-01.io.truenas"
 
@@ -297,7 +297,7 @@ type DriverConfig struct {
 	MetricsAddr string
 }
 
-// NewDriver creates a new TrueNAS CSI driver with the given configuration.
+// NewDriver creates a new ix-csi driver with the given configuration.
 // It validates the configuration, establishes a connection to TrueNAS,
 // and initializes the controller and node services.
 func NewDriver(config *DriverConfig) (*Driver, error) {
@@ -591,7 +591,7 @@ func (d *Driver) Run(ctx context.Context) error {
 			}
 		}()
 
-		d.log.Info("TrueNAS CSI driver starting", "name", d.name, "version", d.version, "endpoint", d.endpoint)
+		d.log.Info("ix-csi driver starting", "name", d.name, "version", d.version, "endpoint", d.endpoint)
 		if err := d.server.Serve(listener); err != nil {
 			serverErr <- err
 		}
@@ -641,7 +641,7 @@ func (d *Driver) Stop() {
 	}
 
 	d.client.Close()
-	d.log.Info("TrueNAS CSI driver stopped")
+	d.log.Info("ix-csi driver stopped")
 }
 
 type requestIDKey struct{}

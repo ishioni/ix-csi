@@ -1,4 +1,4 @@
-# TrueNAS CSI Driver
+# ix-csi
 
 A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.truenas.com/truenas-scale/), enabling dynamic provisioning of persistent volumes in Kubernetes using TrueNAS storage.
 
@@ -52,8 +52,8 @@ A Container Storage Interface (CSI) driver for [TrueNAS 25.10.0+](https://www.tr
 3. **Deploy the driver**
 
    ```bash
-   helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
-     --namespace truenas-csi \
+   helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
+     --namespace ix-csi \
      --create-namespace \
      --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
      --set config.truenasInsecure=true \
@@ -86,8 +86,8 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snaps
 Install the Helm chart and provide your TrueNAS connection details and API key:
 
 ```bash
-helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
-  --namespace truenas-csi \
+helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
+  --namespace ix-csi \
   --create-namespace \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \
   --set config.truenasInsecure=true \
@@ -96,7 +96,7 @@ helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
 ```
 
 To install from a checkout instead, replace the OCI reference with
-`./deploy/helm/truenas-csi`.
+`./deploy/helm/ix-csi`.
 
 ### Configure StorageClasses
 
@@ -110,7 +110,7 @@ kubectl apply -f examples/storageclass-nfs.yaml
 
 ```bash
 # Check driver pods are running
-kubectl get pods -n truenas-csi
+kubectl get pods -n ix-csi
 
 # Verify CSI driver is registered
 kubectl get csidrivers
@@ -121,8 +121,8 @@ kubectl get csidrivers
 The Helm chart uses `/var/lib/kubelet` as the kubelet root directory by default. Some Kubernetes distributions use a different path. If your distribution uses a non-standard path, set `node.kubeletRootDir` during installation:
 
 ```bash
-helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
-  --namespace truenas-csi \
+helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
+  --namespace ix-csi \
   --set node.kubeletRootDir=/var/snap/microk8s/common/var/lib/kubelet
 ```
 
@@ -437,9 +437,9 @@ make test
 
 ## Container Images
 
-| Image                         | Description          |
-| ----------------------------- | -------------------- |
-| `ghcr.io/truenas/truenas-csi` | CSI driver container |
+| Image                    | Description          |
+| ------------------------ | -------------------- |
+| `ghcr.io/ishioni/ix-csi` | CSI driver container |
 
 ## Running the Demo
 
@@ -447,13 +447,13 @@ For an interactive demonstration of all driver features using a local Kind clust
 
 ## OpenShift
 
-The TrueNAS CSI Driver supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. Set `openshift.enabled=true` to have the chart create the required SCCs and capabilities ConfigMap.
+The ix-csi supports Red Hat OpenShift 4.20+ and can be installed with the Helm chart. Set `openshift.enabled=true` to have the chart create the required SCCs and capabilities ConfigMap.
 
 ### Quick Start (OpenShift)
 
 ```bash
-helm upgrade --install truenas-csi oci://ghcr.io/ishioni/charts/truenas-csi \
-  --namespace truenas-csi \
+helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
+  --namespace ix-csi \
   --create-namespace \
   --set openshift.enabled=true \
   --set-string config.truenasURL="wss://your-truenas.example.com/api/current" \

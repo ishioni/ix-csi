@@ -15,7 +15,7 @@ spec:
         - /bin/sh
         - -c
         - |
-          echo "Hello from TrueNAS CSI!" > /data/test.txt
+          echo "Hello from ix-csi!" > /data/test.txt
           nginx -g 'daemon off;'
   volumes:
     - name: data

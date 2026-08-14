@@ -3,7 +3,7 @@ package driver
 import (
 	"testing"
 
-	"github.com/truenas/truenas-csi/pkg/client"
+	"github.com/ishioni/ix-csi/pkg/client"
 )
 
 func TestHasSourceDependentSnapshot(t *testing.T) {

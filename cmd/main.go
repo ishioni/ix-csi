@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/truenas/truenas-csi/pkg/driver"
+	"github.com/ishioni/ix-csi/pkg/driver"
 	"k8s.io/klog/v2/textlogger"
 )
 
@@ -28,7 +28,7 @@ func main() {
 
 	logger := textlogger.NewLogger(logConfig)
 
-	logger.V(driver.LogLevelInfo).Info("Starting TrueNAS CSI Driver", "version", driver.DRIVER_VERSION)
+	logger.V(driver.LogLevelInfo).Info("Starting ix-csi", "version", driver.DRIVER_VERSION)
 
 	if err := validateFlags(); err != nil {
 		logger.Error(err, "Invalid configuration")
@@ -73,7 +73,7 @@ func main() {
 		d.Stop()
 	}
 
-	logger.Info("TrueNAS CSI Driver stopped")
+	logger.Info("ix-csi stopped")
 }
 
 func validateFlags() error {
@@ -101,10 +101,10 @@ func validateFlags() error {
 }
 
 func loadEnvConfig(config *driver.DriverConfig) error {
-	// Optional: override the CSI driver name (default: csi.truenas.io).
-	// Allows running multiple truenas-csi instances in a single cluster,
+	// Optional: override the CSI driver name (default: csi.ix-csi.io).
+	// Allows running multiple ix-csi instances in a single cluster,
 	// each pointing at a different TrueNAS appliance, by giving each a
-	// unique CSIDriver name (e.g. "tenant-a.csi.truenas.io"). The kubelet
+	// unique CSIDriver name (e.g. "tenant-a.csi.ix-csi.io"). The kubelet
 	// socket path and CSIDriver CR name in the deployment manifests must
 	// match the value set here.
 	config.DriverName = os.Getenv("CSI_DRIVER_NAME")
