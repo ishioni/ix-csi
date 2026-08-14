@@ -74,9 +74,7 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -569,11 +567,7 @@
   ],
   "refresh": "",
   "schemaVersion": 42,
-  "tags": [
-    "ix-csi",
-    "truenas",
-    "csi"
-  ],
+  "tags": ["ix-csi", "truenas", "csi"],
   "templating": {
     "list": [
       {
