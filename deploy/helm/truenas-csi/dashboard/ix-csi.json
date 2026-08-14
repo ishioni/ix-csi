@@ -1,0 +1,593 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 9,
+      "panels": [],
+      "title": "CSI Driver",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Percentage of discovered controller and node pods currently connected to TrueNAS. Green means all discovered pods are connected.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "avg(ix_csi_truenas_connection_status{job=\"ix-csi\"})",
+          "legendFormat": "connected",
+          "refId": "A"
+        }
+      ],
+      "title": "TrueNAS Connection Health",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "sum by (result, container) (rate(ix_csi_truenas_reconnects_total[$__rate_interval]))",
+          "legendFormat": "{{container}} / {{result}}",
+          "refId": "A"
+        }
+      ],
+      "title": "TrueNAS Reconnects",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Count of Bound PersistentVolumes using the ix-csi storage classes, sourced from kube-state-metrics.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "count by (storageclass) (kube_persistentvolume_info{job=\"kube-state-metrics\",storageclass=~\"ix-nfs|ix-nvmeof\"} * on (persistentvolume) group_left () kube_persistentvolume_status_phase{job=\"kube-state-metrics\",phase=\"Bound\"})",
+          "legendFormat": "{{storageclass}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bound PVs by StorageClass",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Capacity of Bound PersistentVolumes using the ix-csi storage classes, sourced from kube-state-metrics.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 7,
+      "targets": [
+        {
+          "expr": "sum by (storageclass) (kube_persistentvolume_capacity_bytes{job=\"kube-state-metrics\"} * on (persistentvolume) group_left (storageclass) kube_persistentvolume_info{job=\"kube-state-metrics\",storageclass=~\"ix-nfs|ix-nvmeof\"} * on (persistentvolume) group_left () kube_persistentvolume_status_phase{job=\"kube-state-metrics\",phase=\"Bound\"})",
+          "legendFormat": "{{storageclass}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Bound PV Capacity by StorageClass",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum by (operation, container) (rate(ix_csi_operations_total[$__rate_interval]))",
+          "legendFormat": "{{container}} / {{operation}}",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI RPC Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (operation, container, le) (rate(ix_csi_operations_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{container}} / {{operation}} p95",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI RPC Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum by (operation, container, code) (rate(ix_csi_operations_total{status=\"error\"}[$__rate_interval]))",
+          "legendFormat": "{{container}} / {{operation}} {{code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI RPC Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(ix_csi_truenas_requests_total{status=\"error\"}[$__rate_interval])) / sum(rate(ix_csi_truenas_requests_total[$__rate_interval]))",
+          "legendFormat": "error rate",
+          "refId": "A"
+        }
+      ],
+      "title": "TrueNAS API Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "id": 19,
+      "targets": [
+        {
+          "expr": "100 * sum by (container) (rate(container_cpu_usage_seconds_total{namespace=\"storage\",pod=~\"ix-csi-.*\",container=~\"csi-(controller|node)\"}[$__rate_interval]))",
+          "legendFormat": "{{container}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Driver CPU Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "id": 20,
+      "targets": [
+        {
+          "expr": "sum by (container) (container_memory_working_set_bytes{namespace=\"storage\",pod=~\"ix-csi-.*\",container=~\"csi-(controller|node)\"})",
+          "legendFormat": "{{container}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Driver Memory Working Set",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "id": 13,
+      "panels": [],
+      "title": "External Provisioner Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 42
+      },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum by (class, source) (rate(controller_persistentvolumeclaim_provision_total[$__rate_interval]))",
+          "legendFormat": "provision {{class}} {{source}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (class, source) (rate(controller_persistentvolumeclaim_provision_failed_total[$__rate_interval]))",
+          "legendFormat": "provision failed {{class}} {{source}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Provision Outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 42
+      },
+      "id": 16,
+      "targets": [
+        {
+          "expr": "sum by (class) (rate(controller_persistentvolume_delete_total[$__rate_interval]))",
+          "legendFormat": "delete {{class}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (class) (rate(controller_persistentvolume_delete_failed_total[$__rate_interval]))",
+          "legendFormat": "delete failed {{class}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Delete Outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 42
+      },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum by (method_name, container) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.truenas.io\"}[$__rate_interval]))",
+          "legendFormat": "{{container}} / {{method_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI Sidecar Operation Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 50
+      },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (class, source, le) (rate(controller_persistentvolumeclaim_provision_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{class}} {{source}} p95",
+          "refId": "A"
+        }
+      ],
+      "title": "Provision Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 50
+      },
+      "id": 17,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (class, le) (rate(controller_persistentvolume_delete_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{class}} p95",
+          "refId": "A"
+        }
+      ],
+      "title": "Delete Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 50
+      },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (method_name, container, le) (rate(csi_sidecar_operations_seconds_bucket{driver_name=\"csi.truenas.io\"}[$__rate_interval])))",
+          "legendFormat": "{{container}} / {{method_name}} p95",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI Sidecar Operation Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum by (method_name, container, grpc_status_code) (rate(csi_sidecar_operations_seconds_count{driver_name=\"csi.truenas.io\",grpc_status_code!=\"OK\"}[$__rate_interval]))",
+          "legendFormat": "{{container}} / {{method_name}} {{grpc_status_code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "CSI Sidecar Operation Errors",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": ["ix-csi", "truenas", "csi"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "label": "Prometheus",
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TrueNAS CSI Driver",
+  "uid": "ix-csi",
+  "version": 1,
+  "weekStart": ""
+}
