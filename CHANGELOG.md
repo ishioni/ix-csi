@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.7.0](https://github.com/ishioni/ix-csi/compare/1.6.0...1.7.0) (2026-09-11)
+
+
+### Features
+
+* improve metrics resilience, visibility, and monitoring configuration ([#45](https://github.com/ishioni/ix-csi/issues/45)) ([97be876](https://github.com/ishioni/ix-csi/commit/97be8768d2ff77e8288fbafd9478fadfc57ae2f1))
+
+
+### Bug Fixes
+
+* preserve content source on volume retries ([#37](https://github.com/ishioni/ix-csi/issues/37)) ([1e8b3a6](https://github.com/ishioni/ix-csi/commit/1e8b3a69b32662804bd70dc06dd0389d2aebb9e0))
+* reauthenticate expired TrueNAS sessions ([#39](https://github.com/ishioni/ix-csi/issues/39)) ([027f1e6](https://github.com/ishioni/ix-csi/commit/027f1e605b3c38fe4df9969ed48548fd29f133fb))
+* remove unused topology advertisement ([#43](https://github.com/ishioni/ix-csi/issues/43)) ([2ab7728](https://github.com/ishioni/ix-csi/commit/2ab77285dc053b689130ee88c1c37b0a3d8ec1be))
+* resolve host iscsiadm through PATH ([#42](https://github.com/ishioni/ix-csi/issues/42)) ([7ffe718](https://github.com/ishioni/ix-csi/commit/7ffe718963b9b71c3ac59a7e05bcfd2b26fcd7ac))
+* skip filesystem resize for raw block volumes ([#41](https://github.com/ishioni/ix-csi/issues/41)) ([a11ce73](https://github.com/ishioni/ix-csi/commit/a11ce73140546df4f5755128ddd4fe041037bf08))
+
+
+### Documentation
+
+* correct default K3s kubelet path ([#44](https://github.com/ishioni/ix-csi/issues/44)) ([c8ef3ba](https://github.com/ishioni/ix-csi/commit/c8ef3baf4683c5edc9a45d7cfa568d1326698e14))
+
 ## [1.6.0](https://github.com/ishioni/ix-csi/compare/1.5.4...1.6.0) (2026-08-14)
 
 
