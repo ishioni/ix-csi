@@ -1,0 +1,12 @@
+{
+  "lsp": {
+    "gopls": {
+      "initialization_options": {
+        "buildFlags": ["-tags=integration"],
+        "env": {
+          "GOOS": "linux"
+        }
+      }
+    }
+  }
+}
