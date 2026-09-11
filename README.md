@@ -129,8 +129,8 @@ helm upgrade --install ix-csi oci://ghcr.io/ishioni/charts/ix-csi \
 | Distribution        | Kubelet Path                                |
 | ------------------- | ------------------------------------------- |
 | Standard Kubernetes | `/var/lib/kubelet` (default)                |
+| K3s                 | `/var/lib/kubelet`                          |
 | MicroK8s            | `/var/snap/microk8s/common/var/lib/kubelet` |
-| K3s                 | `/var/lib/rancher/k3s/agent/kubelet`        |
 
 > **Important:** The `kubelet-dir` `mountPath` must match the `hostPath`. If they differ, NFS mounts will succeed inside the CSI container but will not propagate to kubelet, causing pods to see local storage instead of NFS.
 
