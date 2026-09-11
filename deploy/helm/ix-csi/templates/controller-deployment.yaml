@@ -117,7 +117,6 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --v={{ include "ix-csi.logVerbosity" . }}
-            - --feature-gates=Topology=true
             - --extra-create-metadata
             - --leader-election=true
             - --default-fstype=ext4
