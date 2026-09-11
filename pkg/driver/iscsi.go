@@ -26,9 +26,6 @@ const (
 	paramMultipathEnabled   = "iscsi.multipathEnabled"
 	paramPersistentSessions = "iscsi.persistentSessions"
 
-	// Directory for storing csi-lib-iscsi connector files
-	connectorDir = "/var/lib/ix-csi/connectors"
-
 	// iSCSI connection settings
 	iscsiRetryCount    = 10 // number of login attempts
 	iscsiCheckInterval = 1  // seconds between retries
@@ -41,11 +38,18 @@ const (
 	mountOptionBind   = "bind"
 )
 
+// Directory for storing connector files; overridable for isolated tests.
+var connectorDir = "/var/lib/ix-csi/connectors"
+
 // ISCSIHandler implements the ProtocolHandler interface for iSCSI volumes
 type ISCSIHandler struct {
 	mounter *mount.SafeFormatAndMount
 	resizer *mount.ResizeFs
 	log     logr.Logger
+
+	// Tests can replace device discovery/rescans without accessing host sysfs.
+	// A nil override uses rescanExpandDevice.
+	expandDevice func(volumeID string) string
 }
 
 // ISCSIConfig holds iSCSI-specific configuration parsed from volume/publish contexts
@@ -466,12 +470,10 @@ func (h *ISCSIHandler) Unpublish(ctx context.Context, req *UnpublishRequest) err
 	return nil
 }
 
-// Expand implements iSCSI volume expansion
-func (h *ISCSIHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandResult, error) {
-	h.log.V(LogLevelDebug).Info("iSCSI Expand", "volumeId", req.VolumeID, "volumePath", req.VolumePath)
-
+// rescanExpandDevice refreshes device capacity and resolves the path used for resize.
+func (h *ISCSIHandler) rescanExpandDevice(volumeID string) string {
 	// Load connector to get device info
-	cpath := connectorPath(req.VolumeID)
+	cpath := connectorPath(volumeID)
 	connector, err := iscsilib.GetConnectorFromFile(cpath)
 	if err != nil {
 		h.log.Info("Failed to load connector for expand", "error", err)
@@ -484,8 +486,9 @@ func (h *ISCSIHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandR
 				h.log.V(LogLevelTrace).Info("Failed to rescan device", "device", connector.Devices[i].Name, "error", err)
 			}
 		}
-		// For multipath, resize the multipath device
-		if connector.IsMultipathEnabled() && connector.MountTargetDevice != nil {
+		// For multipath, resize the multipath device. The nil check comes first:
+		// IsMultipathEnabled dereferences MountTargetDevice.
+		if connector.MountTargetDevice != nil && connector.IsMultipathEnabled() {
 			if err := iscsilib.ResizeMultipathDevice(connector.MountTargetDevice); err != nil {
 				h.log.V(LogLevelTrace).Info("Failed to resize multipath device", "error", err)
 			}
@@ -504,6 +507,28 @@ func (h *ISCSIHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandR
 		if err := os.WriteFile(rescanPath, []byte("1\n"), 0o200); err != nil {
 			h.log.V(LogLevelTrace).Info("Failed to rescan device", "error", err)
 		}
+	}
+
+	return devicePath
+}
+
+// Expand implements iSCSI volume expansion.
+func (h *ISCSIHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandResult, error) {
+	h.log.V(LogLevelDebug).Info("iSCSI Expand", "volumeId", req.VolumeID, "volumePath", req.VolumePath)
+
+	expandDevice := h.expandDevice
+	if expandDevice == nil {
+		expandDevice = h.rescanExpandDevice
+	}
+	devicePath := expandDevice(req.VolumeID)
+
+	// Raw block volumes hold whatever the workload wrote to them, commonly a
+	// partition table. The rescans above are the whole job: probing the device
+	// for a filesystem to grow would only find contents the driver must not
+	// touch, and the resizer rejects anything it cannot grow.
+	if req.IsBlockVolume {
+		h.log.V(LogLevelDebug).Info("Raw block volume, skipping filesystem resize", "volumeId", req.VolumeID, "device", devicePath)
+		return &ExpandResult{CapacityBytes: req.CapacityBytes}, nil
 	}
 
 	// Resize filesystem
