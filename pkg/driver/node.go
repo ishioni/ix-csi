@@ -260,6 +260,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to inspect publish references: %v", err)
 		}
+		refs = externalMountReferences(state.MountPath, refs)
 		if len(refs) > 0 {
 			return nil, status.Errorf(codes.FailedPrecondition, "volume %s is still published at %v", req.VolumeId, refs)
 		}
@@ -270,8 +271,8 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to verify staging unmount: %v", err)
 		}
-		if effectiveMount(mounts, state.MountPath) != nil {
-			return nil, status.Errorf(codes.Internal, "staging mount %s remains after unmount", state.MountPath)
+		if remaining := effectiveCanonicalMount(mounts, state.MountPath); remaining != nil {
+			return nil, status.Errorf(codes.Internal, "staging mount %s remains after unmount at %s", state.MountPath, remaining.Path)
 		}
 	}
 
@@ -309,7 +310,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to verify volume cleanup: %v", err)
 	}
-	if effectiveMount(mounts, req.StagingTargetPath) != nil || effectiveMount(mounts, rawBlockStagingPath(req.StagingTargetPath)) != nil {
+	if effectiveCanonicalMount(mounts, req.StagingTargetPath) != nil || effectiveCanonicalMount(mounts, rawBlockStagingPath(req.StagingTargetPath)) != nil {
 		return nil, status.Errorf(codes.Internal, "staging mount remains for volume %s", req.VolumeId)
 	}
 

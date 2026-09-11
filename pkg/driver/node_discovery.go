@@ -15,13 +15,14 @@ import (
 const rawBlockStagingFilename = "block_device"
 
 var (
-	sysClassBlockDir  = "/sys/class/block"
-	sysClassNVMeDir   = "/sys/class/nvme"
-	sysDevBlockDir    = "/sys/dev/block"
-	iscsiNodeDBDir    = "/var/lib/iscsi/nodes"
-	deviceDir         = "/dev"
-	evalDeviceSymlink = filepath.EvalSymlinks
-	iscsiGetSessions  = iscsilib.GetSessions
+	sysClassBlockDir        = "/sys/class/block"
+	sysClassNVMeDir         = "/sys/class/nvme"
+	sysClassISCSISessionDir = "/sys/class/iscsi_session"
+	sysDevBlockDir          = "/sys/dev/block"
+	iscsiNodeDBDir          = "/var/lib/iscsi/nodes"
+	deviceDir               = "/dev"
+	evalDeviceSymlink       = filepath.EvalSymlinks
+	iscsiGetSessions        = iscsilib.GetSessions
 )
 
 type volumeState struct {
@@ -126,6 +127,46 @@ func effectiveMount(mounts []mount.MountPoint, path string) *mount.MountPoint {
 		}
 	}
 	return found
+}
+
+func effectiveCanonicalMount(mounts []mount.MountPoint, path string) *mount.MountPoint {
+	target := canonicalHostMountPath(path)
+	var found *mount.MountPoint
+	for i := range mounts {
+		if canonicalHostMountPath(mounts[i].Path) == target {
+			entry := mounts[i]
+			found = &entry
+		}
+	}
+	return found
+}
+
+func canonicalHostMountPath(path string) string {
+	cleanPath := filepath.Clean(path)
+	if !pathWithin("/host", cleanPath) {
+		return cleanPath
+	}
+	relative, err := filepath.Rel("/host", cleanPath)
+	if err != nil {
+		return cleanPath
+	}
+	return filepath.Join(string(filepath.Separator), relative)
+}
+
+func externalMountReferences(mountPath string, refs []string) []string {
+	mountPath = canonicalHostMountPath(mountPath)
+	seen := make(map[string]bool)
+	external := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		ref = canonicalHostMountPath(ref)
+		if ref == mountPath || seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		external = append(external, ref)
+	}
+	sort.Strings(external)
+	return external
 }
 
 func resolveMountSource(mounts []mount.MountPoint, entry *mount.MountPoint) (string, string, error) {
@@ -355,6 +396,83 @@ func findISCSINodeRecordByVolumeID(volumeID string) (*ISCSIConnection, error) {
 	return &ISCSIConnection{TargetIQN: matches[0]}, nil
 }
 
+func currentISCSITargetsInSysfs() ([]string, error) {
+	entries, err := os.ReadDir(sysClassISCSISessionDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to inspect iSCSI session sysfs: %w", err)
+	}
+	var targets []string
+	for _, entry := range entries {
+		sessionID := strings.TrimPrefix(entry.Name(), "session")
+		if sessionID == entry.Name() || !isAllDigits(sessionID) {
+			continue
+		}
+		base := filepath.Join(sysClassISCSISessionDir, entry.Name())
+		targetData, err := os.ReadFile(filepath.Join(base, "targetname"))
+		if err != nil {
+			if os.IsNotExist(err) && pathMissing(base) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to read target name for iSCSI %s: %w", entry.Name(), err)
+		}
+		targetIQN := strings.TrimSpace(string(targetData))
+		if targetIQN == "" {
+			return nil, fmt.Errorf("empty target name for iSCSI %s", entry.Name())
+		}
+		targets = append(targets, targetIQN)
+	}
+	sort.Strings(targets)
+	return compactStrings(targets), nil
+}
+
+func iscsiTargetPresentInSysfs(targetIQN string) (bool, error) {
+	targets, err := currentISCSITargetsInSysfs()
+	if err != nil {
+		return false, err
+	}
+	for _, target := range targets {
+		if target == targetIQN {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func findISCSIEvidenceTargetByVolumeID(volumeID string) (string, error) {
+	matching := make(map[string]bool)
+	nodeRecord, err := findISCSINodeRecordByVolumeID(volumeID)
+	if err != nil {
+		return "", err
+	}
+	if nodeRecord != nil {
+		matching[nodeRecord.TargetIQN] = true
+	}
+
+	targets, err := currentISCSITargetsInSysfs()
+	if err != nil {
+		return "", err
+	}
+	expectedSuffix := ":" + makeISCSITargetSuffix(volumeID)
+	for _, targetIQN := range targets {
+		if strings.HasSuffix(targetIQN, expectedSuffix) {
+			matching[targetIQN] = true
+		}
+	}
+	if len(matching) == 0 {
+		return "", nil
+	}
+	if len(matching) > 1 {
+		return "", fmt.Errorf("multiple iSCSI evidence targets match volume %q", volumeID)
+	}
+	for targetIQN := range matching {
+		return targetIQN, nil
+	}
+	return "", nil
+}
+
 func iscsiTargetConnected(targetIQN string) (bool, error) {
 	sessions, err := currentISCSISessions()
 	if err != nil {
@@ -365,7 +483,7 @@ func iscsiTargetConnected(targetIQN string) (bool, error) {
 			return true, nil
 		}
 	}
-	return false, nil
+	return iscsiTargetPresentInSysfs(targetIQN)
 }
 
 func nvmeSubNQNForBlockDevice(devicePath string) (string, bool, error) {
@@ -594,24 +712,36 @@ func discoverMountedVolume(volumeID string, mounts []mount.MountPoint, entry *mo
 }
 
 func discoverDetachedVolume(volumeID string) (*volumeState, error) {
-	iscsiConnection, iscsiErr := findISCSIConnectionByVolumeID(volumeID)
-	nqn, controllers, nvmeErr := findNVMeConnectionByVolumeID(volumeID)
-	if iscsiErr != nil {
-		return nil, iscsiErr
+	nqn, controllers, err := findNVMeConnectionByVolumeID(volumeID)
+	if err != nil {
+		return nil, err
 	}
-	if nvmeErr != nil {
-		return nil, nvmeErr
+
+	iscsiEvidenceTarget, err := findISCSIEvidenceTargetByVolumeID(volumeID)
+	if err != nil {
+		return nil, err
 	}
-	if iscsiConnection != nil && nqn != "" {
-		return nil, fmt.Errorf("both iSCSI and NVMe-oF connections match volume %q", volumeID)
+	if iscsiEvidenceTarget == "" {
+		if nqn != "" {
+			return &volumeState{Protocol: ProtocolNVMeOF, NVMeSubNQN: nqn, NVMeControllers: controllers}, nil
+		}
+		return &volumeState{}, nil
 	}
-	if iscsiConnection != nil {
-		return &volumeState{Protocol: ProtocolISCSI, ISCSI: iscsiConnection}, nil
+
+	iscsiConnection, err := findISCSIConnectionByVolumeID(volumeID)
+	if err != nil {
+		return nil, err
+	}
+	if iscsiConnection == nil {
+		return nil, fmt.Errorf("iSCSI evidence remains for volume %q but its connection could not be resolved", volumeID)
+	}
+	if iscsiConnection.TargetIQN != iscsiEvidenceTarget {
+		return nil, fmt.Errorf("iSCSI evidence target %q for volume %q disagrees with resolved connection %q", iscsiEvidenceTarget, volumeID, iscsiConnection.TargetIQN)
 	}
 	if nqn != "" {
-		return &volumeState{Protocol: ProtocolNVMeOF, NVMeSubNQN: nqn, NVMeControllers: controllers}, nil
+		return nil, fmt.Errorf("both iSCSI and NVMe-oF connections match volume %q", volumeID)
 	}
-	return &volumeState{}, nil
+	return &volumeState{Protocol: ProtocolISCSI, ISCSI: iscsiConnection}, nil
 }
 
 func (s *NodeServer) discoverUnstageState(volumeID, stagingPath string) (*volumeState, error) {
@@ -621,6 +751,16 @@ func (s *NodeServer) discoverUnstageState(volumeID, stagingPath string) (*volume
 	}
 	filesystemMount := effectiveMount(mounts, stagingPath)
 	blockMount := effectiveMount(mounts, rawBlockStagingPath(stagingPath))
+	if filesystemMount == nil {
+		if mirror := effectiveCanonicalMount(mounts, stagingPath); mirror != nil {
+			return nil, fmt.Errorf("staging mount %s remains only through host mirror %s", stagingPath, mirror.Path)
+		}
+	}
+	if blockMount == nil {
+		if mirror := effectiveCanonicalMount(mounts, rawBlockStagingPath(stagingPath)); mirror != nil {
+			return nil, fmt.Errorf("block staging mount %s remains only through host mirror %s", rawBlockStagingPath(stagingPath), mirror.Path)
+		}
+	}
 	if filesystemMount != nil && blockMount != nil {
 		return nil, fmt.Errorf("both filesystem and raw-block staging mounts exist for volume %q", volumeID)
 	}
