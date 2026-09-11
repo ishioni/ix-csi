@@ -6,10 +6,20 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"google.golang.org/grpc/status"
 )
 
 const metricsNamespace = "ix_csi"
+
+const (
+	volumeOperationCreate   = "create"
+	volumeOperationDelete   = "delete"
+	volumeOperationExpand   = "expand"
+	volumeOperationSnapshot = "snapshot"
+)
+
+var metricsDurationBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300}
 
 type provisionedVolume struct {
 	pool     string
@@ -23,6 +33,7 @@ type Metrics struct {
 	registry *prometheus.Registry
 
 	operationsTotal    *prometheus.CounterVec
+	volumeOperations   *prometheus.CounterVec
 	operationDuration  *prometheus.HistogramVec
 	truenasRequests    *prometheus.CounterVec
 	truenasRequestTime *prometheus.HistogramVec
@@ -46,11 +57,16 @@ func NewMetrics() *Metrics {
 			Name:      "operations_total",
 			Help:      "Total number of CSI RPC operations by operation and outcome.",
 		}, []string{"operation", "status", "code"}),
+		volumeOperations: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Name:      "volume_operations_total",
+			Help:      "Volume operations attempted by protocol, operation and outcome, including idempotent retries.",
+		}, []string{"protocol", "operation", "status"}),
 		operationDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Name:      "operations_duration_seconds",
 			Help:      "Duration of CSI RPC operations in seconds.",
-			Buckets:   prometheus.DefBuckets,
+			Buckets:   metricsDurationBuckets,
 		}, []string{"operation"}),
 		truenasRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
@@ -60,8 +76,8 @@ func NewMetrics() *Metrics {
 		truenasRequestTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Name:      "truenas_requests_duration_seconds",
-			Help:      "Duration of TrueNAS JSON-RPC requests in seconds.",
-			Buckets:   prometheus.DefBuckets,
+			Help:      "Duration of TrueNAS JSON-RPC request attempts in seconds, excluding reconnect and retry waits.",
+			Buckets:   metricsDurationBuckets,
 		}, []string{"method"}),
 		connectionStatus: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
@@ -93,6 +109,7 @@ func NewMetrics() *Metrics {
 
 	m.registry.MustRegister(
 		m.operationsTotal,
+		m.volumeOperations,
 		m.operationDuration,
 		m.truenasRequests,
 		m.truenasRequestTime,
@@ -101,6 +118,8 @@ func NewMetrics() *Metrics {
 		m.reconnects,
 		m.capacityBytes,
 		m.volumeCount,
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 	return m
 }
@@ -125,6 +144,23 @@ func (m *Metrics) ObserveCSI(fullMethod string, err error, duration time.Duratio
 
 	m.operationsTotal.WithLabelValues(operation, outcome, code).Inc()
 	m.operationDuration.WithLabelValues(operation).Observe(duration.Seconds())
+}
+
+// RecordVolumeOperation records a protocol-specific controller operation outcome.
+func (m *Metrics) RecordVolumeOperation(protocol, operation string, err error) {
+	if m == nil {
+		return
+	}
+	switch protocol {
+	case ProtocolNFS, ProtocolISCSI, ProtocolNVMeOF:
+	default:
+		protocol = "unknown"
+	}
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	m.volumeOperations.WithLabelValues(protocol, operation, outcome).Inc()
 }
 
 // ObserveRequest implements client.MetricsRecorder for TrueNAS requests.

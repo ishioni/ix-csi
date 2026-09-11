@@ -76,10 +76,12 @@ spec:
             - --node-id=$(NODE_ID)
             - --mode=node
             - --v={{ include "ix-csi.logVerbosity" . }}
-            {{- if .Values.metrics.enabled }}
+            {{- if and .Values.metrics.enabled .Values.metrics.node.enabled }}
             - --metrics-addr=:{{ .Values.metrics.port }}
+            {{- else }}
+            - --metrics-addr=
             {{- end }}
-          {{- if .Values.metrics.enabled }}
+          {{- if and .Values.metrics.enabled .Values.metrics.node.enabled }}
           ports:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}

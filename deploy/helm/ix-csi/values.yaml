@@ -10,13 +10,21 @@ logLevel: info
 metrics:
   # -- Enable driver-native and CSI sidecar Prometheus endpoints and metrics Services.
   enabled: false
-  # -- TCP port used by the driver-native Prometheus endpoint.
+  # @schema
+  # type: integer
+  # minimum: 1
+  # maximum: 65535
+  # @schema
+  # -- TCP port used by the driver-native Prometheus endpoint (1-65535). When metrics are enabled, must not conflict with CSI sidecars (9801-9804) or liveness probes (9808).
   port: 9809
+  node:
+    # -- Enable the node Prometheus endpoint on the host network and its Service/ServiceMonitor. Requires metrics.enabled; set false for controller-only metrics. When disabled, the node metrics address is explicitly empty.
+    enabled: true
   service:
     # -- Additional annotations for the controller and node metrics Services.
     annotations: {}
   serviceMonitor:
-    # -- Create Prometheus Operator ServiceMonitor resources.
+    # -- Create Prometheus Operator ServiceMonitor resources. Requires metrics.enabled=true and the ServiceMonitor CRD to be installed.
     enabled: false
     # -- Additional labels for ServiceMonitor selection by Prometheus.
     labels: {}

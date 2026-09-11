@@ -309,7 +309,7 @@ func (s *ControllerServer) validateStorageClassParameters(ctx context.Context, p
 }
 
 // CreateVolume creates a new volume on TrueNAS, either as an NFS share or iSCSI target.
-func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (resp *csi.CreateVolumeResponse, err error) {
 	ctx, cancel := withTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -358,6 +358,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	protocol := s.driver.GetProtocolFromParameters(parameters)
 	pool := s.driver.GetPoolFromParameters(parameters)
+	defer func() { s.driver.metrics.RecordVolumeOperation(protocol, volumeOperationCreate, err) }()
 
 	volumeName := SanitizeVolumeName(req.Name)
 	datasetPath := pool + "/" + volumeName
@@ -487,7 +488,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.Internal, "failed to create volume: %v", err)
 	}
 
-	resp := &csi.CreateVolumeResponse{
+	resp = &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volInfo.ID,
 			CapacityBytes: volInfo.CapacityBytes,
@@ -1834,7 +1835,7 @@ func (s *ControllerServer) createNVMeOFTargetForClone(ctx context.Context, volum
 }
 
 // DeleteVolume deletes a volume and all its associated resources (NFS share or iSCSI target/extent).
-func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (resp *csi.DeleteVolumeResponse, err error) {
 	ctx, cancel := withTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -1843,6 +1844,9 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID is required")
 	}
+
+	protocol := "unknown"
+	defer func() { s.driver.metrics.RecordVolumeOperation(protocol, volumeOperationDelete, err) }()
 
 	pool, name, err := s.driver.ParseVolumeID(req.VolumeId)
 	if err != nil {
@@ -1879,6 +1883,9 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	// Get volume info for resource cleanup
 	volInfo, _ := s.driver.GetVolumeInfo(req.VolumeId)
+	if volInfo != nil {
+		protocol = volInfo.Protocol
+	}
 
 	// Clean up protocol-specific resources (iSCSI target/extent/auth or NFS share)
 	if volInfo != nil && volInfo.Protocol == ProtocolISCSI {
@@ -2242,7 +2249,7 @@ func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 }
 
 // CreateSnapshot creates a ZFS snapshot of the source volume.
-func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	ctx, cancel := withTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -2260,6 +2267,8 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "volume not found: %v", err)
 	}
+
+	defer func() { s.driver.metrics.RecordVolumeOperation(volInfo.Protocol, volumeOperationSnapshot, err) }()
 
 	snapshotName := SanitizeVolumeName(req.Name)
 	detached, err := detachedBoolParameter(req.Parameters, paramDetachedSnapshots)
@@ -2622,7 +2631,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 }
 
 // ControllerExpandVolume expands the ZFS dataset or ZVOL capacity.
-func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 	ctx, cancel := withTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -2640,6 +2649,8 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "volume not found: %v", err)
 	}
+
+	defer func() { s.driver.metrics.RecordVolumeOperation(volInfo.Protocol, volumeOperationExpand, err) }()
 
 	newSize := req.CapacityRange.RequiredBytes
 	if newSize > 0 && newSize < minVolumeSize {

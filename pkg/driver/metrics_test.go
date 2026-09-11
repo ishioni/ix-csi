@@ -36,6 +36,50 @@ func TestMetricsObserveCSI(t *testing.T) {
 
 }
 
+func TestMetricsLongOperationBuckets(t *testing.T) {
+	metrics := NewMetrics()
+	metrics.ObserveCSI("/csi.v1.Controller/CreateVolume", nil, 90*time.Second)
+	metrics.ObserveRequest("pool.dataset.create", "success", 90*time.Second)
+	families, err := metrics.Registry().Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, family := range families {
+		switch family.GetName() {
+		case "ix_csi_operations_duration_seconds", "ix_csi_truenas_requests_duration_seconds":
+			checked++
+			want := map[float64]uint64{10: 0, 30: 0, 60: 0, 120: 1, 300: 1}
+			for _, bucket := range family.Metric[0].GetHistogram().Bucket {
+				if count, ok := want[bucket.GetUpperBound()]; ok {
+					if bucket.GetCumulativeCount() != count {
+						t.Errorf("%s bucket %v = %d, want %d", family.GetName(), bucket.GetUpperBound(), bucket.GetCumulativeCount(), count)
+					}
+					delete(want, bucket.GetUpperBound())
+				}
+			}
+			if len(want) != 0 {
+				t.Errorf("%s missing buckets: %v", family.GetName(), want)
+			}
+		}
+	}
+	if checked != 2 {
+		t.Fatalf("found %d latency histograms, want 2", checked)
+	}
+}
+
+func TestMetricsVolumeOperation(t *testing.T) {
+	metrics := NewMetrics()
+	metrics.RecordVolumeOperation(ProtocolISCSI, volumeOperationExpand, status.Error(codes.Internal, "backend failed"))
+	metrics.RecordVolumeOperation("", volumeOperationDelete, nil)
+	if got := testutil.ToFloat64(metrics.volumeOperations.WithLabelValues(ProtocolISCSI, volumeOperationExpand, "error")); got != 1 {
+		t.Fatalf("failed expand count = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(metrics.volumeOperations.WithLabelValues("unknown", volumeOperationDelete, "success")); got != 1 {
+		t.Fatalf("unknown protocol delete count = %v, want 1", got)
+	}
+}
+
 func TestMetricsProvisionedCapacity(t *testing.T) {
 	metrics := NewMetrics()
 

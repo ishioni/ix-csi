@@ -1,4 +1,7 @@
 {{- if .Values.metrics.enabled }}
+{{- if has (int .Values.metrics.port) (list 9801 9802 9803 9804 9808) }}
+{{- fail "metrics.port must not conflict with CSI sidecar ports (9801-9804) or the liveness probe port (9808) when metrics.enabled=true" }}
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -37,6 +40,7 @@ spec:
   selector:
     {{- include "ix-csi.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: controller
+{{- if .Values.metrics.node.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -61,4 +65,5 @@ spec:
   selector:
     {{- include "ix-csi.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: node
+{{- end }}
 {{- end }}

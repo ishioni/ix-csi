@@ -65,18 +65,6 @@ spec:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
               protocol: TCP
-            - name: prov-metrics
-              containerPort: 9801
-              protocol: TCP
-            - name: attach-metrics
-              containerPort: 9802
-              protocol: TCP
-            - name: snap-metrics
-              containerPort: 9803
-              protocol: TCP
-            - name: resize-metrics
-              containerPort: 9804
-              protocol: TCP
           {{- end }}
           env:
             - name: CSI_ENDPOINT
