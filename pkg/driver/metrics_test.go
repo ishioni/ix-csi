@@ -9,6 +9,18 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func TestMetricsServerReadHeaderTimeout(t *testing.T) {
+	server, err := NewMetricsServer("127.0.0.1:0", NewMetrics())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.listener.Close()
+
+	if got := server.server.ReadHeaderTimeout; got != 5*time.Second {
+		t.Fatalf("ReadHeaderTimeout = %v, want 5s", got)
+	}
+}
+
 func TestMetricsObserveCSI(t *testing.T) {
 	metrics := NewMetrics()
 
