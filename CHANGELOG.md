@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/ishioni/ix-csi/compare/1.7.0...1.7.1) (2026-09-11)
+
+
+### Code Refactoring
+
+* make node teardown restart-safe ([#40](https://github.com/ishioni/ix-csi/issues/40)) ([076ab53](https://github.com/ishioni/ix-csi/commit/076ab532831ea1dc756c2339b69f501f7c0fabff))
+
 ## [1.7.0](https://github.com/ishioni/ix-csi/compare/1.6.0...1.7.0) (2026-09-11)
 
 
