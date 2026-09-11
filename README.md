@@ -192,12 +192,20 @@ metrics:
 The chart then exposes the driver-native `/metrics` endpoint through separate
 controller and headless node Services. It also enables the CSI sidecar
 `--http-endpoint` metrics endpoints on the controller using ports `9801` through
-`9804`.
+`9804`. The driver port must be between 1 and 65535 and cannot use `9801`–`9804`
+or the liveness port `9808` when metrics are enabled. For controller-only
+monitoring, set `metrics.node.enabled: false`; otherwise the node endpoint binds
+on every node's host network. Keep these unauthenticated HTTP endpoints on trusted
+monitoring networks.
+
+Driver metrics listener failures are logged without stopping CSI. Fix the cause
+and restart the pod to restore scraping; the listener is not automatically retried.
 
 To create Prometheus Operator scrape targets, also enable:
 
 ```yaml
 metrics:
+  enabled: true
   serviceMonitor:
     enabled: true
     labels:
@@ -205,20 +213,38 @@ metrics:
 ```
 
 The driver exposes CSI RPC and TrueNAS request outcomes/latency, TrueNAS
-connection and reconnect health, and provisioned capacity/volume gauges. The
-main metric families are prefixed with `ix_csi_`.
+connection and reconnect health, and provisioned capacity/volume gauges. Existing
+`ix_csi_` names and labels are unchanged. TrueNAS request metrics count individual
+API attempts, not logical calls including reconnect/retry waits.
+
+- CSI and API latency histograms retain their existing buckets and add 30, 60,
+  120, and 300 seconds. Compare aggregate quantiles after all selected pods have
+  upgraded; mixed bucket layouts can distort them during rollout.
+- `ix_csi_volume_operations_total{protocol,operation,status}` counts create,
+  delete, expand, and snapshot requests, including idempotent retries. Early
+  validation failures remain in CSI RPC metrics only; deletes whose protocol
+  cannot be resolved use `unknown`. No extra backend queries are made for metrics.
+- Standard `go_*` and `process_*` collectors expose runtime and process health.
+- Provisioned capacity/volume gauges reflect only volumes known to that driver
+  process, not a complete cluster inventory. The dashboard uses kube-state-metrics
+  for Bound PV counts and capacity.
 
 The four CSI sidecars share the `csi_sidecar_operations_seconds` histogram,
 with `driver_name`, `method_name`, and `grpc_status_code` labels. The
 external-provisioner also exposes provision/delete counters and latency
 histograms prefixed with `controller_`. The bundled Grafana dashboard includes
-separate sections for driver, sidecar, and provisioner metrics.
+separate sections for driver, sidecar, and provisioner metrics, plus API latency
+by method and volume operations by protocol. Select driver job/namespace/pods to
+scope an installation, and select its StorageClasses and PVC namespaces separately
+for PV inventory. Use a single-cluster datasource; workload filters cannot apply
+to RPC/API counters that lack those labels.
 
 The chart can optionally create a Prometheus Operator `ServiceMonitor`, a
 Grafana sidecar-discovery ConfigMap, and a Grafana Operator `GrafanaDashboard`:
 
 ```yaml
 metrics:
+  enabled: true
   serviceMonitor:
     enabled: true
   dashboards:

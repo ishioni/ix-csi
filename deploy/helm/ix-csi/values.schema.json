@@ -342,9 +342,24 @@
           "title": "grafanaDashboard",
           "type": "object"
         },
+        "node": {
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the node Prometheus endpoint on the host network and its Service/ServiceMonitor. Requires metrics.enabled; set false for controller-only metrics. When disabled, the node metrics address is explicitly empty.",
+              "title": "enabled",
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "title": "node",
+          "type": "object"
+        },
         "port": {
           "default": 9809,
-          "description": "TCP port used by the driver-native Prometheus endpoint.",
+          "description": "TCP port used by the driver-native Prometheus endpoint (1-65535). When metrics are enabled, must not conflict with CSI sidecars (9801-9804) or liveness probes (9808).",
+          "maximum": 65535,
+          "minimum": 1,
           "title": "port",
           "type": "integer"
         },
@@ -371,7 +386,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create Prometheus Operator ServiceMonitor resources.",
+              "description": "Create Prometheus Operator ServiceMonitor resources. Requires metrics.enabled=true and the ServiceMonitor CRD to be installed.",
               "title": "enabled",
               "type": "boolean"
             },

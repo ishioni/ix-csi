@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -36,7 +37,10 @@ func NewMetricsServer(addr string, metrics *Metrics) (*MetricsServer, error) {
 	mux.Handle("/metrics", promhttp.HandlerFor(metrics.Registry(), promhttp.HandlerOpts{}))
 
 	return &MetricsServer{
-		server:   &http.Server{Handler: mux},
+		server: &http.Server{
+			Handler:           mux,
+			ReadHeaderTimeout: 5 * time.Second,
+		},
 		listener: listener,
 		errors:   make(chan error, 1),
 	}, nil

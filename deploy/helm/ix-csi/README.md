@@ -66,10 +66,11 @@ Kubernetes: `>=1.26.0-0`
 | metrics.grafanaDashboard.instanceSelector | object | `{"matchLabels":{"grafana.internal/instance":"grafana"}}` | Grafana Operator instance selector for the dashboard resource. |
 | metrics.grafanaDashboard.labels | object | `{}` | Additional labels for the GrafanaDashboard resource. |
 | metrics.grafanaDashboard.resyncPeriod | string | `"10m"` | How often the Grafana Operator re-checks the dashboard for updates. |
-| metrics.port | int | `9809` | TCP port used by the driver-native Prometheus endpoint. |
+| metrics.node.enabled | bool | `true` | Enable the node Prometheus endpoint on the host network and its Service/ServiceMonitor. Requires metrics.enabled; set false for controller-only metrics. When disabled, the node metrics address is explicitly empty. |
+| metrics.port | int | `9809` | TCP port used by the driver-native Prometheus endpoint (1-65535). When metrics are enabled, must not conflict with CSI sidecars (9801-9804) or liveness probes (9808). |
 | metrics.service.annotations | object | `{}` | Additional annotations for the controller and node metrics Services. |
 | metrics.serviceMonitor.annotations | object | `{}` | Additional ServiceMonitor annotations. |
-| metrics.serviceMonitor.enabled | bool | `false` | Create Prometheus Operator ServiceMonitor resources. |
+| metrics.serviceMonitor.enabled | bool | `false` | Create Prometheus Operator ServiceMonitor resources. Requires metrics.enabled=true and the ServiceMonitor CRD to be installed. |
 | metrics.serviceMonitor.interval | string | `"30s"` | Prometheus scrape interval. |
 | metrics.serviceMonitor.labels | object | `{}` | Additional labels for ServiceMonitor selection by Prometheus. |
 | metrics.serviceMonitor.scrapeTimeout | string | `"10s"` | Prometheus scrape timeout. |

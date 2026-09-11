@@ -267,6 +267,9 @@ func TestCreateVolumeExistingContentSource(t *testing.T) {
 						t.Error("CreateVolume mutated its request")
 					}
 					assertIdempotencyInventory(t, controller.driver.metrics, protocol, capacity, 1)
+					if got := testutil.ToFloat64(controller.driver.metrics.volumeOperations.WithLabelValues(protocol, volumeOperationCreate, "success")); got != float64(attempt) {
+						t.Errorf("create operation count = %v, want %d", got, attempt)
+					}
 				}
 			})
 		}
@@ -298,6 +301,9 @@ func TestCreateVolumeExistingUndersized(t *testing.T) {
 				t.Errorf("CreateVolume = (%v, %v), want nil response and AlreadyExists", resp, err)
 			}
 			assertIdempotencyInventory(t, controller.driver.metrics, protocol, 0, 0)
+			if got := testutil.ToFloat64(controller.driver.metrics.volumeOperations.WithLabelValues(protocol, volumeOperationCreate, "error")); got != 1 {
+				t.Errorf("failed create operation count = %v, want 1", got)
+			}
 		})
 	}
 }
