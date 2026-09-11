@@ -40,6 +40,11 @@ const (
 	rpcErrCodeNotFound       = -6 // ENOENT - resource not found
 	rpcErrCodeConnectionLost = -1 // Internal error for connection loss
 
+	// TrueNAS method-call errors carry the middleware errno in RPCError.Data,
+	// not the generic JSON-RPC code.
+	truenasErrnoNotAuthenticated = 207 // middlewared ENOTAUTHENTICATED
+	errnameNotAuthenticated      = "ENOTAUTHENTICATED"
+
 	// Logging verbosity levels (for logr.Logger.V())
 	// V(0) - Always logged (critical errors, startup/shutdown)
 	// V(1) - General operational info (connection events, reconnection)
@@ -157,6 +162,29 @@ func IsNotFoundError(err error) bool {
 		}
 	}
 	return false
+}
+
+// IsNotAuthenticatedError reports an explicit TrueNAS session-authentication
+// rejection, which can occur while the WebSocket connection is still healthy.
+func IsNotAuthenticatedError(err error) bool {
+	var rpcErr *RPCError
+	if !errors.As(err, &rpcErr) || rpcErr == nil {
+		return false
+	}
+
+	var data struct {
+		Error   int    `json:"error"`
+		Errname string `json:"errname"`
+	}
+	if json.Unmarshal(rpcErr.Data, &data) == nil {
+		if data.Error == truenasErrnoNotAuthenticated || data.Errname == errnameNotAuthenticated {
+			return true
+		}
+	}
+
+	// Older error shapes may only include the symbolic errno in the message.
+	// Generic authentication/permission errors must not trigger reauthentication.
+	return strings.Contains(strings.ToUpper(rpcErr.Message), errnameNotAuthenticated)
 }
 
 // request represents a JSON-RPC request.
@@ -569,12 +597,15 @@ func (c *Client) Closed() bool {
 // Concurrent calls are limited by MaxConcurrentCalls to prevent overwhelming TrueNAS.
 // If the connection drops during a call, it waits for reconnection and retries.
 // The caller's context deadline bounds the total time including retries.
+// An explicit session-expiry rejection triggers reauthentication and one retry;
+// waiting for reauthentication is additionally bounded by CallTimeout.
 func (c *Client) Call(ctx context.Context, method string, params, result any) error {
 	if err := c.callSem.Acquire(ctx, 1); err != nil {
 		return ErrNotConnected
 	}
 	defer c.callSem.Release(1)
 
+	reauthAttempted := false
 	for {
 		c.connMu.RLock()
 		conn := c.conn
@@ -598,6 +629,33 @@ func (c *Client) Call(ctx context.Context, method string, params, result any) er
 		}
 		if err == nil {
 			return nil
+		}
+
+		// Handle authentication before transport errors: TrueNAS can also use
+		// RPC code -1 for an expired session. Only retry an explicit rejection
+		// once per Call, even if another caller has already replaced the socket.
+		if IsNotAuthenticatedError(err) {
+			if reauthAttempted {
+				return err
+			}
+			reauthAttempted = true
+			c.log.Info("TrueNAS session is no longer authenticated, reconnecting", "method", method)
+			c.handleDisconnect(conn)
+
+			// Background callers must not wait forever if the replacement login
+			// fails. Keep the original RPC error when recovery cannot complete.
+			reauthCtx, cancel := context.WithTimeout(ctx, c.config.CallTimeout)
+			waitErr := c.waitForConnection(reauthCtx)
+			// Another caller may have replaced the connection before the wait,
+			// whose connected fast path does not check cancellation.
+			if waitErr == nil {
+				waitErr = reauthCtx.Err()
+			}
+			cancel()
+			if waitErr != nil || c.closed.Load() {
+				return err
+			}
+			continue
 		}
 
 		// Retry on transient connection errors
