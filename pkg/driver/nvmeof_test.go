@@ -138,27 +138,6 @@ func TestNVMeByIDCandidates(t *testing.T) {
 	}
 }
 
-func TestNVMeConnectorPath(t *testing.T) {
-	p := nvmeConnectorPath("tank/k8s/pvc-abc")
-	if got := p[len(p)-len(nvmeConnectorExt):]; got != nvmeConnectorExt {
-		t.Errorf("connector path %q does not end with %q", p, nvmeConnectorExt)
-	}
-	// Slashes from the volume ID must be sanitized out of the filename.
-	base := p[len(connectorDir)+1:]
-	if containsSlash(base) {
-		t.Errorf("connector filename %q contains a slash", base)
-	}
-}
-
-func containsSlash(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '/' {
-			return true
-		}
-	}
-	return false
-}
-
 func TestNVMeConnectArgs_WithDHCHAP(t *testing.T) {
 	calls := mockNVMeExec(t)
 	h := &NVMeOFHandler{log: logr.Discard()}
@@ -261,12 +240,5 @@ func TestLoadKernelModules(t *testing.T) {
 		if c.name != "modprobe" || len(c.args) != 1 || c.args[0] != mod {
 			t.Errorf("call %d = %s %v, want modprobe %s", i, c.name, c.args, mod)
 		}
-	}
-}
-
-func TestLoadConnector_Missing(t *testing.T) {
-	h := &NVMeOFHandler{log: logr.Discard()}
-	if info := h.loadConnector("nonexistent-volume-xyz"); info != nil {
-		t.Errorf("expected nil for missing connector, got %+v", info)
 	}
 }

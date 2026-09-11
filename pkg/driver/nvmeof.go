@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,18 +18,12 @@ import (
 var nvmeExecCommand = exec.CommandContext
 
 const (
-	// nvmeConnectorExt is the connector-file extension for NVMe-oF volumes,
-	// distinct from iSCSI's ".connector".
-	nvmeConnectorExt = ".nvme"
-
 	// nvmeCtrlLossTmo keeps the connection retrying through transient target
 	// outages instead of failing the mount on a brief blip (pattern from ceph-csi).
 	nvmeCtrlLossTmo = "1800"
 
 	// nvmeByIDPrefix is the udev by-id symlink prefix for a namespace UUID.
 	nvmeByIDPrefix = "/dev/disk/by-id/nvme-uuid."
-
-	nvmeSysClassDir = "/sys/class/nvme"
 
 	nvmeDeviceWaitAttempts = 30
 	nvmeDeviceWaitInterval = 200 * time.Millisecond
@@ -55,20 +48,8 @@ type NVMeOFConfig struct {
 	DHCHAPCtrlKey string
 }
 
-// nvmeConnectorInfo is persisted per-volume so unstage/expand can find the device
-// and subsystem without the publish/volume contexts (NodeUnstage gets neither).
-type nvmeConnectorInfo struct {
-	VolumeID      string `json:"volumeID"`
-	SubNQN        string `json:"subnqn"`
-	NamespaceUUID string `json:"namespaceUUID"`
-	DevicePath    string `json:"devicePath"`
-}
-
 // NewNVMeOFHandler creates a new NVMe-oF protocol handler.
 func NewNVMeOFHandler(mounter *mount.SafeFormatAndMount, log logr.Logger) (*NVMeOFHandler, error) {
-	if err := os.MkdirAll(connectorDir, 0o750); err != nil {
-		return nil, fmt.Errorf("failed to create connector directory %s: %w", connectorDir, err)
-	}
 	return &NVMeOFHandler{
 		mounter: mounter,
 		resizer: mount.NewResizeFs(mounter.Exec),
@@ -79,11 +60,6 @@ func NewNVMeOFHandler(mounter *mount.SafeFormatAndMount, log logr.Logger) (*NVMe
 // Protocol returns the protocol name.
 func (h *NVMeOFHandler) Protocol() string {
 	return ProtocolNVMeOF
-}
-
-// nvmeConnectorPath returns the connector file path for a volume.
-func nvmeConnectorPath(volumeID string) string {
-	return filepath.Join(connectorDir, sanitizeISCSIVolumeID(volumeID)+nvmeConnectorExt)
 }
 
 // parseNVMeOFConfig extracts NVMe-oF configuration. Connection parameters come from
@@ -127,10 +103,11 @@ func (h *NVMeOFHandler) Stage(ctx context.Context, req *StageRequest) (*StageRes
 	}
 	h.log.V(LogLevelDebug).Info("NVMe-oF connected", "device", devicePath, "subnqn", config.SubNQN)
 
-	h.persistConnector(req.VolumeID, config, devicePath)
-
-	// Block volumes: return the device path, no filesystem.
+	// Raw block volumes get the same durable staging anchor used by iSCSI.
 	if req.IsBlockVolume {
+		if err := stageBlockDevice(h.mounter, devicePath, req.StagingPath); err != nil {
+			return nil, err
+		}
 		return &StageResult{DevicePath: devicePath}, nil
 	}
 
@@ -233,9 +210,15 @@ func (h *NVMeOFHandler) nvmeRescanNamespace(ctx context.Context, devicePath stri
 	if ctrl == "" {
 		return fmt.Errorf("could not derive controller device from %s", devicePath)
 	}
-	out, err := nvmeExecCommand(ctx, "nvme", "ns-rescan", ctrl).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("nvme ns-rescan failed: %w (output: %s)", err, strings.TrimSpace(string(out)))
+	return h.nvmeRescanControllers(ctx, []string{ctrl})
+}
+
+func (h *NVMeOFHandler) nvmeRescanControllers(ctx context.Context, controllers []string) error {
+	for _, controller := range controllers {
+		out, err := nvmeExecCommand(ctx, "nvme", "ns-rescan", controller).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("nvme ns-rescan %s failed: %w (output: %s)", controller, err, strings.TrimSpace(string(out)))
+		}
 	}
 	return nil
 }
@@ -298,17 +281,17 @@ func nvmeDeviceBySubsysNQN(subnqn string) string {
 	if subnqn == "" {
 		return ""
 	}
-	entries, err := os.ReadDir(nvmeSysClassDir)
+	entries, err := os.ReadDir(sysClassNVMeDir)
 	if err != nil {
 		return ""
 	}
 	for _, e := range entries {
 		ctrl := e.Name() // e.g. nvme0
-		data, err := os.ReadFile(filepath.Join(nvmeSysClassDir, ctrl, "subsysnqn"))
+		data, err := os.ReadFile(filepath.Join(sysClassNVMeDir, ctrl, "subsysnqn"))
 		if err != nil || strings.TrimSpace(string(data)) != subnqn {
 			continue
 		}
-		nsEntries, err := os.ReadDir(filepath.Join(nvmeSysClassDir, ctrl))
+		nsEntries, err := os.ReadDir(filepath.Join(sysClassNVMeDir, ctrl))
 		if err != nil {
 			continue
 		}
@@ -359,73 +342,31 @@ func isAllDigits(s string) bool {
 	return true
 }
 
-// persistConnector writes the connector file for unstage/expand.
-func (h *NVMeOFHandler) persistConnector(volumeID string, config *NVMeOFConfig, devicePath string) {
-	info := nvmeConnectorInfo{
-		VolumeID:      volumeID,
-		SubNQN:        config.SubNQN,
-		NamespaceUUID: config.NamespaceUUID,
-		DevicePath:    devicePath,
-	}
-	data, err := json.Marshal(info)
-	if err != nil {
-		h.log.Info("Failed to marshal NVMe-oF connector", "error", err)
-		return
-	}
-	if err := os.WriteFile(nvmeConnectorPath(volumeID), data, 0o600); err != nil {
-		h.log.Info("Failed to persist NVMe-oF connector", "error", err)
-	}
-}
-
-// loadConnector reads the connector file, or returns nil if absent/invalid.
-func (h *NVMeOFHandler) loadConnector(volumeID string) *nvmeConnectorInfo {
-	data, err := os.ReadFile(nvmeConnectorPath(volumeID))
-	if err != nil {
-		return nil
-	}
-	var info nvmeConnectorInfo
-	if err := json.Unmarshal(data, &info); err != nil {
-		h.log.V(LogLevelDebug).Info("Failed to unmarshal NVMe-oF connector", "error", err)
-		return nil
-	}
-	return &info
-}
-
-// Unstage unmounts the staging path, disconnects the subsystem, and removes the connector.
+// Unstage disconnects the live subsystem discovered by NodeUnstageVolume. The
+// staging mount is removed centrally before this runs, and a retry can recover the
+// same subsystem from its deterministic NQN suffix.
 func (h *NVMeOFHandler) Unstage(ctx context.Context, req *UnstageRequest) error {
-	h.log.V(LogLevelDebug).Info("NVMe-oF Unstage", "volumeId", req.VolumeID, "stagingPath", req.StagingPath)
-
-	notMounted, err := h.mounter.IsLikelyNotMountPoint(req.StagingPath)
+	h.log.V(LogLevelDebug).Info("NVMe-oF Unstage", "volumeId", req.VolumeID, "subnqn", req.NVMeSubNQN)
+	if req.NVMeSubNQN == "" {
+		return fmt.Errorf("missing live NVMe-oF subsystem identity for volume %s", req.VolumeID)
+	}
+	connected, err := nvmeSubsystemConnected(req.NVMeSubNQN)
 	if err != nil {
-		if os.IsNotExist(err) {
-			h.cleanupNVMeSession(ctx, req.VolumeID)
-			return nil
-		}
-		return fmt.Errorf("failed to check mount point: %w", err)
+		return fmt.Errorf("failed to inspect NVMe-oF subsystem %s: %w", req.NVMeSubNQN, err)
 	}
-
-	if !notMounted {
-		if err := h.mounter.Unmount(req.StagingPath); err != nil {
-			return fmt.Errorf("failed to unmount staging path: %w", err)
+	if connected {
+		if err := h.nvmeDisconnect(ctx, req.NVMeSubNQN); err != nil {
+			return fmt.Errorf("failed to disconnect NVMe-oF subsystem %s: %w", req.NVMeSubNQN, err)
 		}
 	}
-
-	h.cleanupNVMeSession(ctx, req.VolumeID)
-	os.Remove(req.StagingPath)
-
-	h.log.V(LogLevelDebug).Info("NVMe-oF volume unstaged", "volumeId", req.VolumeID)
+	connected, err = nvmeSubsystemConnected(req.NVMeSubNQN)
+	if err != nil {
+		return fmt.Errorf("failed to verify NVMe-oF disconnect for %s: %w", req.NVMeSubNQN, err)
+	}
+	if connected {
+		return fmt.Errorf("NVMe-oF subsystem %s remains connected after disconnect", req.NVMeSubNQN)
+	}
 	return nil
-}
-
-// cleanupNVMeSession disconnects the subsystem and removes the connector file.
-func (h *NVMeOFHandler) cleanupNVMeSession(ctx context.Context, volumeID string) {
-	info := h.loadConnector(volumeID)
-	if info != nil && info.SubNQN != "" {
-		if err := h.nvmeDisconnect(ctx, info.SubNQN); err != nil {
-			h.log.V(LogLevelDebug).Info("Failed to disconnect NVMe-oF subsystem", "subnqn", info.SubNQN, "error", err)
-		}
-	}
-	os.Remove(nvmeConnectorPath(volumeID))
 }
 
 // Publish bind-mounts the staged volume (or block device) to the target path.
@@ -459,35 +400,9 @@ func (h *NVMeOFHandler) Publish(ctx context.Context, req *PublishRequest) error 
 	return nil
 }
 
-// publishBlockVolume bind-mounts the raw block device to the target path.
+// publishBlockVolume bind-mounts the staged raw-block anchor to the workload.
 func (h *NVMeOFHandler) publishBlockVolume(req *PublishRequest) error {
-	info := h.loadConnector(req.VolumeID)
-	if info == nil || info.DevicePath == "" {
-		return fmt.Errorf("no NVMe-oF connector/device found for volume %s", req.VolumeID)
-	}
-
-	if _, err := os.Stat(info.DevicePath); err != nil {
-		return fmt.Errorf("block device %s not found: %w", info.DevicePath, err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(req.TargetPath), 0o750); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
-	}
-	file, err := os.OpenFile(req.TargetPath, os.O_CREATE|os.O_RDWR, 0o660)
-	if err != nil {
-		return fmt.Errorf("failed to create target file: %w", err)
-	}
-	file.Close()
-
-	mountOptions := []string{mountOptionBind}
-	if req.ReadOnly {
-		mountOptions = append(mountOptions, mountOptionReadOnly)
-	}
-	if err := h.mounter.Mount(info.DevicePath, req.TargetPath, "", mountOptions); err != nil {
-		os.Remove(req.TargetPath)
-		return fmt.Errorf("failed to bind mount block device: %w", err)
-	}
-	return nil
+	return publishBlockDevice(h.mounter, req.StagingPath, req.TargetPath, req.ReadOnly)
 }
 
 // Unpublish unmounts the target path.
@@ -511,31 +426,25 @@ func (h *NVMeOFHandler) Unpublish(ctx context.Context, req *UnpublishRequest) er
 	return nil
 }
 
-// Expand rescans the namespace for the new size and grows the filesystem.
+// Expand rescans every live controller for the namespace and grows the filesystem.
 func (h *NVMeOFHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandResult, error) {
 	h.log.V(LogLevelDebug).Info("NVMe-oF Expand", "volumeId", req.VolumeID, "volumePath", req.VolumePath)
-
-	info := h.loadConnector(req.VolumeID)
-	if info == nil || info.DevicePath == "" {
-		return nil, fmt.Errorf("no NVMe-oF device found for volume %s", req.VolumeID)
+	if req.DevicePath == "" || len(req.NVMeControllers) == 0 {
+		return nil, fmt.Errorf("no live NVMe-oF device found for volume %s", req.VolumeID)
+	}
+	if err := h.nvmeRescanControllers(ctx, req.NVMeControllers); err != nil {
+		return nil, err
 	}
 
-	if err := h.nvmeRescanNamespace(ctx, info.DevicePath); err != nil {
-		h.log.V(LogLevelDebug).Info("Failed to rescan NVMe-oF namespace", "device", info.DevicePath, "error", err)
-	}
-
-	// Raw block volumes have no filesystem the node may grow; the namespace
-	// rescan above is all the expansion they need.
+	// Raw block volumes have no filesystem the node may grow; controller rescans
+	// are all the expansion they need.
 	if req.IsBlockVolume {
-		h.log.V(LogLevelDebug).Info("Raw block volume, skipping filesystem resize", "volumeId", req.VolumeID, "device", info.DevicePath)
+		h.log.V(LogLevelDebug).Info("Raw block volume, skipping filesystem resize", "volumeId", req.VolumeID, "device", req.DevicePath)
 		return &ExpandResult{CapacityBytes: req.CapacityBytes}, nil
 	}
 
-	if req.VolumePath != "" {
-		if _, err := h.resizer.Resize(info.DevicePath, req.VolumePath); err != nil {
-			return nil, fmt.Errorf("failed to resize filesystem: %w", err)
-		}
+	if _, err := h.resizer.Resize(req.DevicePath, req.VolumePath); err != nil {
+		return nil, fmt.Errorf("failed to resize filesystem: %w", err)
 	}
-
 	return &ExpandResult{CapacityBytes: req.CapacityBytes}, nil
 }

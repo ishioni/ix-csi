@@ -2,7 +2,7 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,16 +16,6 @@ import (
 	"k8s.io/utils/exec"
 	testingexec "k8s.io/utils/exec/testing"
 )
-
-// These tests replace package globals and must not run in parallel.
-func useBlockExpandConnectorDir(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	original := connectorDir
-	connectorDir = dir
-	t.Cleanup(func() { connectorDir = original })
-	return dir
-}
 
 // A workload-owned partition table is not a filesystem mount-utils can resize.
 // Keep this response even in block tests: a regression must fail rather than
@@ -96,36 +86,28 @@ func TestIsBlockVolumeExpansion(t *testing.T) {
 	}
 }
 
-// newBlockExpandTestHandler isolates all device operations. In particular, the
-// iSCSI seam must replace connector loading as well as rescans: the library can
-// invoke lsblk while loading a connector, before any mount-utils exec is used.
-func newBlockExpandTestHandler(t *testing.T, protocol, volumeID string) (ProtocolHandler, *testingexec.FakeExec, func()) {
+// newBlockExpandTestHandler isolates rescans and filesystem tools from the host.
+func newBlockExpandTestHandler(t *testing.T, protocol string) (ProtocolHandler, *testingexec.FakeExec, func()) {
 	t.Helper()
-	useBlockExpandConnectorDir(t)
 	fake := partitionTableExec()
 	mounter := &mount.SafeFormatAndMount{Interface: mount.NewFakeMounter(nil), Exec: fake}
 
 	switch protocol {
 	case ProtocolISCSI:
-		// NodeExpandVolume only needs this marker to select the iSCSI handler.
-		// The fake replaces connector parsing and every host/device rescan.
-		if err := os.WriteFile(connectorPath(volumeID), nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
 		var calls int
 		handler := &ISCSIHandler{
 			mounter: mounter,
 			resizer: mount.NewResizeFs(fake),
 			log:     logr.Discard(),
-			expandDevice: func(gotVolumeID string) string {
+			expandDevice: func(devicePath string, blockDevices []string) error {
 				calls++
-				if gotVolumeID != volumeID {
-					t.Errorf("expandDevice volumeID = %q, want %q", gotVolumeID, volumeID)
+				if devicePath != "/dev/sda" || len(blockDevices) != 1 || blockDevices[0] != "/dev/sda" {
+					t.Errorf("expand device = %q, paths = %v", devicePath, blockDevices)
 				}
 				if fake.CommandCalls != 0 {
 					t.Error("filesystem was probed before device expansion")
 				}
-				return "/dev/sda"
+				return nil
 			},
 		}
 		return handler, fake, func() {
@@ -135,19 +117,6 @@ func newBlockExpandTestHandler(t *testing.T, protocol, volumeID string) (Protoco
 			}
 		}
 	case ProtocolNVMeOF:
-		info := nvmeConnectorInfo{
-			VolumeID:      volumeID,
-			SubNQN:        "nqn.2011-06.com.truenas:csi-pvc-abc",
-			NamespaceUUID: "e1f2a3b4-0000-1111-2222-333344445555",
-			DevicePath:    "/dev/nvme0n1",
-		}
-		data, err := json.Marshal(info)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(nvmeConnectorPath(volumeID), data, 0o600); err != nil {
-			t.Fatal(err)
-		}
 		calls := mockNVMeExec(t)
 		handler := &NVMeOFHandler{
 			mounter: mounter,
@@ -174,12 +143,19 @@ func newBlockExpandTestHandler(t *testing.T, protocol, volumeID string) (Protoco
 func testBlockExpand(t *testing.T, protocol string, isBlock bool) {
 	t.Helper()
 	const volumeID = "tank/pvc-abc"
-	handler, fake, checkRescan := newBlockExpandTestHandler(t, protocol, volumeID)
+	handler, fake, checkRescan := newBlockExpandTestHandler(t, protocol)
 	req := &ExpandRequest{
 		VolumeID:      volumeID,
 		VolumePath:    filepath.Join(t.TempDir(), "volume"),
+		DevicePath:    "/dev/sda",
+		BlockDevices:  []string{"/dev/sda"},
 		CapacityBytes: 11 * GiB,
 		IsBlockVolume: isBlock,
+	}
+	if protocol == ProtocolNVMeOF {
+		req.DevicePath = "/dev/nvme0n1"
+		req.BlockDevices = nil
+		req.NVMeControllers = []string{"/dev/nvme0"}
 	}
 	result, err := handler.Expand(context.Background(), req)
 	checkRescan()
@@ -252,20 +228,37 @@ func TestNodeExpandVolume_BlockExpansion(t *testing.T) {
 			for _, tt := range tests {
 				t.Run(tt.name, func(t *testing.T) {
 					const volumeID = "tank/pvc-abc"
-					handler, fake, checkRescan := newBlockExpandTestHandler(t, protocol, volumeID)
-					server := &NodeServer{driver: &Driver{log: logr.Discard()}}
-					switch h := handler.(type) {
-					case *ISCSIHandler:
-						server.iscsiHandler = h
-					case *NVMeOFHandler:
-						server.nvmeofHandler = h
-					}
+					fixture := useDiscoveryFixture(t)
+					handler, fake, checkRescan := newBlockExpandTestHandler(t, protocol)
 					volumePath := t.TempDir()
 					if !tt.directory {
 						volumePath = filepath.Join(volumePath, "device")
 						if err := os.WriteFile(volumePath, nil, 0o600); err != nil {
 							t.Fatal(err)
 						}
+					}
+
+					devicePath := "/dev/sda"
+					if protocol == ProtocolISCSI {
+						fixture.addISCSIDevice(t, "sda", 7)
+						iscsiGetSessions = func() (string, error) {
+							return iscsiSessionLine(7, "10.0.0.10:3260", "iqn.2000-01.io.truenas:csi-tank-pvc-abc"), nil
+						}
+					} else {
+						devicePath = "/dev/nvme0n1"
+						fixture.addNVMeDevice(t, "nvme0n1", "nvme0", "nqn.2011-06.com.truenas:csi-tank-pvc-abc", "tcp")
+					}
+					nodeMounter := mount.NewFakeMounter([]mount.MountPoint{{Device: devicePath, Path: volumePath, Type: "ext4"}})
+					server := &NodeServer{
+						driver:     &Driver{log: logr.Discard()},
+						mounter:    nodeMounter,
+						nfsHandler: NewNFSHandler(nodeMounter, logr.Discard()),
+					}
+					switch h := handler.(type) {
+					case *ISCSIHandler:
+						server.iscsiHandler = h
+					case *NVMeOFHandler:
+						server.nvmeofHandler = h
 					}
 					req := &csi.NodeExpandVolumeRequest{
 						VolumeId:         volumeID,

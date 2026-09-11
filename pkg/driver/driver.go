@@ -142,10 +142,20 @@ type StageRequest struct {
 	IsBlockVolume bool // true for raw block volumes (no filesystem)
 }
 
-// UnstageRequest contains all information needed to unstage a volume
+// ISCSIConnection identifies the live sessions for one iSCSI target.
+type ISCSIConnection struct {
+	TargetIQN string
+	Portals   []string
+}
+
+// UnstageRequest contains the live state needed to unstage a volume.
 type UnstageRequest struct {
 	VolumeID    string
 	StagingPath string
+	MountPath   string
+	DevicePath  string
+	ISCSI       *ISCSIConnection
+	NVMeSubNQN  string
 }
 
 // PublishRequest contains all information needed to publish a volume
@@ -170,10 +180,13 @@ type UnpublishRequest struct {
 
 // ExpandRequest contains all information needed to expand a volume
 type ExpandRequest struct {
-	VolumeID      string
-	VolumePath    string
-	CapacityBytes int64
-	IsBlockVolume bool // true for raw block volumes (no filesystem to grow)
+	VolumeID        string
+	VolumePath      string
+	DevicePath      string
+	BlockDevices    []string
+	NVMeControllers []string
+	CapacityBytes   int64
+	IsBlockVolume   bool // true for raw block volumes (no filesystem to grow)
 }
 
 // StageResult contains the result of staging a volume
