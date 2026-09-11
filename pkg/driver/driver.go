@@ -571,11 +571,7 @@ func (d *Driver) Run(ctx context.Context) error {
 
 	metricsServer, err := NewMetricsServer(d.metricsAddr, d.metrics)
 	if err != nil {
-		listener.Close()
-		if closeErr := d.client.Close(); closeErr != nil {
-			d.log.V(LogLevelInfo).Error(closeErr, "TrueNAS client stopped after metrics server failure")
-		}
-		return err
+		d.log.Error(err, "Metrics endpoint could not start, serving volumes without it", "address", d.metricsAddr)
 	}
 	d.metricsServer = metricsServer
 	if metricsServer != nil {
@@ -598,19 +594,21 @@ func (d *Driver) Run(ctx context.Context) error {
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		d.log.V(LogLevelInfo).Info("Shutdown signal received, stopping CSI driver")
-		d.Stop()
-		return nil
-	case err := <-serverErr:
-		d.log.V(LogLevelInfo).Error(err, "Server error occurred")
-		d.Stop()
-		return fmt.Errorf("server error: %v", err)
-	case err := <-d.metricsServer.Errors():
-		d.log.V(LogLevelInfo).Error(err, "Metrics server error occurred")
-		d.Stop()
-		return fmt.Errorf("metrics server error: %v", err)
+	metricsErrors := d.metricsServer.Errors()
+	for {
+		select {
+		case <-ctx.Done():
+			d.log.V(LogLevelInfo).Info("Shutdown signal received, stopping CSI driver")
+			d.Stop()
+			return nil
+		case err := <-serverErr:
+			d.log.V(LogLevelInfo).Error(err, "Server error occurred")
+			d.Stop()
+			return fmt.Errorf("server error: %v", err)
+		case err := <-metricsErrors:
+			d.log.Error(err, "Metrics endpoint stopped, continuing to serve volumes", "address", d.metricsAddr)
+			metricsErrors = nil
+		}
 	}
 }
 
