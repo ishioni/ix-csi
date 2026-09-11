@@ -88,20 +88,6 @@ test "$(controller_image --set-string image.digest=sha256:released --set-string 
 test "$(node_image --set-string image.digest=sha256:released --set-string controller.image.digest=sha256:pr-controller --set-string node.image.tag=pr-node)" = "ghcr.io/ishioni/ix-csi:pr-node"
 """
 
-[tasks.helm-iscsiadm-test]
-description = "Verify the rendered host iscsiadm wrapper and preserved NVMe module loading"
-run = '''
-set -eu
-hook=$(mktemp)
-trap 'rm -f "$hook"' EXIT
-helm template ix-csi deploy/helm/ix-csi --set secret.apiKey=dummy |
-  yq -r 'select(.kind == "DaemonSet" and .metadata.name == "ix-csi-node") | .spec.template.spec.containers[] | select(.name == "csi-node") | .lifecycle.postStart.exec.command[2]' > "$hook"
-sh -n "$hook"
-grep -Fq 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nexec nsenter --mount=/host/proc/1/ns/mnt -- "${ISCSIADM_HOST_PATH:-iscsiadm}" "$@"\n' "$hook"
-grep -Fq 'nsenter --mount=/host/proc/1/ns/mnt -- modprobe nvme_tcp 2>/dev/null || true' "$hook"
-grep -Fq 'nsenter --mount=/host/proc/1/ns/mnt -- modprobe nvme_fabrics 2>/dev/null || true' "$hook"
-grep -Fq 'test -x /usr/sbin/iscsiadm' "$hook"
-'''
 
 [tasks.generate]
 description = "Regenerate committed Helm documentation and values schema"

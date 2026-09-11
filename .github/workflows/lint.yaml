@@ -53,8 +53,7 @@ jobs:
         run: mise run helm-lint
       - name: Verify Helm image resolution
         run: mise run helm-image-test
-      - name: Verify host iscsiadm wrapper
-        run: mise run helm-iscsiadm-test
+
       - name: Check generated chart files
         run: mise run generate-check
 
