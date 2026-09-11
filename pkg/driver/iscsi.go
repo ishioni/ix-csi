@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -32,6 +31,10 @@ const (
 	iscsiRetryCount    = 10 // number of login attempts
 	iscsiCheckInterval = 1  // seconds between retries
 
+	// iscsiadmExitNoObjsFound is iscsiadm's ISCSI_ERR_NO_OBJS_FOUND: the record or
+	// session asked about does not exist.
+	iscsiadmExitNoObjsFound = 21
+
 	// Filesystem types
 	fsTypeXFS = "xfs"
 
@@ -40,18 +43,15 @@ const (
 	mountOptionBind   = "bind"
 )
 
-// Directory for storing connector files; overridable for isolated tests.
-var connectorDir = "/var/lib/ix-csi/connectors"
-
 // ISCSIHandler implements the ProtocolHandler interface for iSCSI volumes
 type ISCSIHandler struct {
 	mounter *mount.SafeFormatAndMount
 	resizer *mount.ResizeFs
 	log     logr.Logger
 
-	// Tests can replace device discovery/rescans without accessing host sysfs.
+	// Tests can replace device rescans without accessing host sysfs.
 	// A nil override uses rescanExpandDevice.
-	expandDevice func(volumeID string) string
+	expandDevice func(devicePath string, blockDevices []string) error
 }
 
 // ISCSIConfig holds iSCSI-specific configuration parsed from volume/publish contexts
@@ -67,13 +67,8 @@ type ISCSIConfig struct {
 	PersistentSessions bool
 }
 
-// NewISCSIHandler creates a new iSCSI protocol handler
+// NewISCSIHandler creates a new iSCSI protocol handler.
 func NewISCSIHandler(mounter *mount.SafeFormatAndMount, log logr.Logger) (*ISCSIHandler, error) {
-	// Ensure connector directory exists
-	if err := os.MkdirAll(connectorDir, 0o750); err != nil {
-		return nil, fmt.Errorf("failed to create connector directory %s: %w", connectorDir, err)
-	}
-
 	return &ISCSIHandler{
 		mounter: mounter,
 		resizer: mount.NewResizeFs(mounter.Exec),
@@ -84,11 +79,6 @@ func NewISCSIHandler(mounter *mount.SafeFormatAndMount, log logr.Logger) (*ISCSI
 // Protocol returns the protocol name
 func (h *ISCSIHandler) Protocol() string {
 	return ProtocolISCSI
-}
-
-// connectorPath returns the path for storing connector info for a volume
-func connectorPath(volumeID string) string {
-	return filepath.Join(connectorDir, fmt.Sprintf("%s.connector", sanitizeISCSIVolumeID(volumeID)))
 }
 
 // parseISCSIConfig extracts iSCSI configuration from publish and volume contexts.
@@ -224,23 +214,13 @@ func (h *ISCSIHandler) Stage(ctx context.Context, req *StageRequest) (*StageResu
 
 	h.log.V(LogLevelDebug).Info("iSCSI connected", "device", devicePath)
 
-	// Persist connector info for cleanup on unstage.
-	// Connect() takes a value copy so device info isn't populated in our
-	// original connector. We must set it from the returned devicePath so that
-	// block volume publish can find the device later.
-	if devicePath != "" {
-		deviceName := filepath.Base(devicePath) // e.g. "sda" from "/dev/sda"
-		connector.MountTargetDevice = &iscsilib.Device{Name: deviceName}
-		connector.Devices = []iscsilib.Device{{Name: deviceName}}
-	}
-	cpath := connectorPath(req.VolumeID)
-	if err := iscsilib.PersistConnector(connector, cpath); err != nil {
-		h.log.Info("Failed to persist connector info", "error", err)
-	}
-
-	// For block volumes, skip formatting and mounting - just return the device path
+	// Raw block volumes get a durable staging bind mount. Publish binds from this
+	// anchor rather than caching a kernel device name that may be reused later.
 	if req.IsBlockVolume {
-		h.log.V(LogLevelDebug).Info("iSCSI block volume staged (no filesystem)", "volumeId", req.VolumeID, "device", devicePath)
+		if err := stageBlockDevice(h.mounter, devicePath, req.StagingPath); err != nil {
+			return nil, err
+		}
+		h.log.V(LogLevelDebug).Info("iSCSI block volume staged", "volumeId", req.VolumeID, "device", devicePath)
 		return &StageResult{DevicePath: devicePath}, nil
 	}
 
@@ -282,80 +262,58 @@ func (h *ISCSIHandler) Stage(ctx context.Context, req *StageRequest) (*StageResu
 	return &StageResult{DevicePath: devicePath}, nil
 }
 
-// Unstage implements iSCSI volume unstaging (logout and cleanup)
+// Unstage disconnects the live iSCSI sessions discovered by NodeUnstageVolume.
+// The staging mount is removed centrally before this runs so a failed logout can be
+// retried by finding the deterministic target IQN in the live session table.
 func (h *ISCSIHandler) Unstage(ctx context.Context, req *UnstageRequest) error {
-	h.log.V(LogLevelDebug).Info("iSCSI Unstage", "volumeId", req.VolumeID, "stagingPath", req.StagingPath)
-
-	// Check if mounted
-	notMounted, err := h.mounter.IsLikelyNotMountPoint(req.StagingPath)
+	h.log.V(LogLevelDebug).Info("iSCSI Unstage", "volumeId", req.VolumeID)
+	if req.ISCSI == nil || req.ISCSI.TargetIQN == "" {
+		return fmt.Errorf("missing live iSCSI connection identity for volume %s", req.VolumeID)
+	}
+	if err := logoutISCSITarget(req.ISCSI.TargetIQN, req.ISCSI.Portals); err != nil {
+		return fmt.Errorf("failed to log out of iSCSI target %s: %w", req.ISCSI.TargetIQN, err)
+	}
+	connected, err := iscsiTargetConnected(req.ISCSI.TargetIQN)
 	if err != nil {
-		if os.IsNotExist(err) {
-			h.log.V(LogLevelDebug).Info("Staging path does not exist, considering unstaged", "stagingPath", req.StagingPath)
-			// Still try to disconnect iSCSI and cleanup connector
-			h.cleanupISCSISession(req.VolumeID)
-			return nil
-		}
-		return fmt.Errorf("failed to check mount point: %w", err)
+		return fmt.Errorf("failed to verify iSCSI logout for %s: %w", req.ISCSI.TargetIQN, err)
 	}
-
-	// Unmount if mounted
-	if !notMounted {
-		if err := h.mounter.Unmount(req.StagingPath); err != nil {
-			return fmt.Errorf("failed to unmount staging path: %w", err)
-		}
+	if connected {
+		return fmt.Errorf("iSCSI target %s remains connected after logout", req.ISCSI.TargetIQN)
 	}
-
-	// Disconnect iSCSI session and cleanup
-	h.cleanupISCSISession(req.VolumeID)
-
-	// Remove staging directory
-	os.Remove(req.StagingPath)
-
-	h.log.V(LogLevelDebug).Info("iSCSI volume unstaged", "volumeId", req.VolumeID)
+	h.log.V(LogLevelDebug).Info("Disconnected from iSCSI target", "targetIqn", req.ISCSI.TargetIQN)
 	return nil
 }
 
-// cleanupISCSISession disconnects the iSCSI session and removes the connector file
-func (h *ISCSIHandler) cleanupISCSISession(volumeID string) {
-	cpath := connectorPath(volumeID)
-	if _, err := os.Stat(cpath); err != nil {
-		return // No connector file, nothing to clean up
+// logoutISCSITarget logs out of every portal of a target and drops its node
+// database entry. csi-lib-iscsi's Disconnect helper does the same work but discards
+// every error and gives the caller no way to tell a completed logout from a failed
+// one, so its finer-grained calls are used directly here. Overridable in tests.
+var (
+	iscsiLogout        = iscsilib.Logout
+	iscsiDeleteDBEntry = iscsilib.DeleteDBEntry
+	logoutISCSITarget  = logoutISCSITargetImpl
+)
+
+func logoutISCSITargetImpl(targetIQN string, portals []string) error {
+	for _, portal := range portals {
+		// Keep the complete portal. iscsiadm node records include the port, and
+		// dropping a non-default port can log out the wrong record or no record.
+		if err := iscsiLogout(targetIQN, portal); err != nil && !isNoISCSIObjectsFound(err) {
+			return fmt.Errorf("logout from portal %s failed: %w", portal, err)
+		}
 	}
 
-	// Try to load connector - GetConnectorFromFile may fail validation if
-	// mountTargetDevice is nil, but we only need TargetIqn and TargetPortals
-	// for disconnect, so try to read the file directly as fallback
-	connector, err := iscsilib.GetConnectorFromFile(cpath)
-	if err != nil {
-		h.log.V(LogLevelDebug).Info("GetConnectorFromFile failed, trying direct read", "path", cpath, "error", err)
-		// Read file directly and unmarshal to get IQN and portals
-		connector = h.readConnectorDirect(cpath)
+	if err := iscsiDeleteDBEntry(targetIQN); err != nil && !isNoISCSIObjectsFound(err) {
+		return fmt.Errorf("removing the node database entry failed: %w", err)
 	}
-
-	if connector != nil && connector.TargetIqn != "" {
-		iscsilib.Disconnect(connector.TargetIqn, connector.TargetPortals)
-		h.log.V(LogLevelDebug).Info("Disconnected from iSCSI target", "targetIqn", connector.TargetIqn)
-	}
-
-	// Remove connector file
-	os.Remove(cpath)
+	return nil
 }
 
-// readConnectorDirect reads a connector file without validation
-func (h *ISCSIHandler) readConnectorDirect(path string) *iscsilib.Connector {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-
-	// The connector file is JSON, decode just the fields we need
-	var connector iscsilib.Connector
-	if err := json.Unmarshal(data, &connector); err != nil {
-		h.log.V(LogLevelDebug).Info("Failed to unmarshal connector", "error", err)
-		return nil
-	}
-
-	return &connector
+// isNoISCSIObjectsFound reports whether an iscsiadm call failed only because what it
+// was asked about is not present, which makes logout idempotent.
+func isNoISCSIObjectsFound(err error) bool {
+	var exitErr *exec.ExitError
+	return errors.As(err, &exitErr) && exitErr.ExitCode() == iscsiadmExitNoObjsFound
 }
 
 // Publish implements iSCSI volume publishing (bind mount from staging)
@@ -396,61 +354,12 @@ func (h *ISCSIHandler) Publish(ctx context.Context, req *PublishRequest) error {
 	return nil
 }
 
-// publishBlockVolume handles publishing raw block volumes
+// publishBlockVolume bind-mounts the staged raw-block anchor to the workload.
 func (h *ISCSIHandler) publishBlockVolume(ctx context.Context, req *PublishRequest) error {
-	// Get device path from connector file
-	cpath := connectorPath(req.VolumeID)
-	connector, err := iscsilib.GetConnectorFromFile(cpath)
-	if err != nil {
-		return fmt.Errorf("failed to load connector for block volume: %w", err)
+	if err := publishBlockDevice(h.mounter, req.StagingPath, req.TargetPath, req.ReadOnly); err != nil {
+		return err
 	}
-
-	if len(connector.Devices) == 0 {
-		return fmt.Errorf("no devices found in connector for volume %s", req.VolumeID)
-	}
-
-	// Determine device path
-	var devicePath string
-	if connector.MountTargetDevice != nil && connector.MountTargetDevice.Name != "" {
-		// Use multipath device if available
-		devicePath = fmt.Sprintf("/dev/%s", connector.MountTargetDevice.Name)
-	} else {
-		// Use first device
-		devicePath = fmt.Sprintf("/dev/%s", connector.Devices[0].Name)
-	}
-
-	h.log.V(LogLevelDebug).Info("Publishing block volume", "volumeId", req.VolumeID, "devicePath", devicePath, "targetPath", req.TargetPath)
-
-	// Verify device exists
-	if _, err := os.Stat(devicePath); err != nil {
-		return fmt.Errorf("block device %s not found: %w", devicePath, err)
-	}
-
-	// Create parent directory of target path
-	targetDir := filepath.Dir(req.TargetPath)
-	if err := os.MkdirAll(targetDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
-	}
-
-	// Create target file for block device mount
-	file, err := os.OpenFile(req.TargetPath, os.O_CREATE|os.O_RDWR, 0o660)
-	if err != nil {
-		return fmt.Errorf("failed to create target file: %w", err)
-	}
-	file.Close()
-
-	// Bind mount block device to target file
-	mountOptions := []string{mountOptionBind}
-	if req.ReadOnly {
-		mountOptions = append(mountOptions, mountOptionReadOnly)
-	}
-
-	if err := h.mounter.Mount(devicePath, req.TargetPath, "", mountOptions); err != nil {
-		os.Remove(req.TargetPath)
-		return fmt.Errorf("failed to bind mount block device: %w", err)
-	}
-
-	h.log.V(LogLevelDebug).Info("iSCSI block volume published", "volumeId", req.VolumeID, "devicePath", devicePath, "targetPath", req.TargetPath)
+	h.log.V(LogLevelDebug).Info("iSCSI block volume published", "volumeId", req.VolumeID, "stagingPath", req.StagingPath, "targetPath", req.TargetPath)
 	return nil
 }
 
@@ -480,79 +389,57 @@ func (h *ISCSIHandler) Unpublish(ctx context.Context, req *UnpublishRequest) err
 	return nil
 }
 
-// rescanExpandDevice refreshes device capacity and resolves the path used for resize.
-func (h *ISCSIHandler) rescanExpandDevice(volumeID string) string {
-	// Load connector to get device info
-	cpath := connectorPath(volumeID)
-	connector, err := iscsilib.GetConnectorFromFile(cpath)
-	if err != nil {
-		h.log.Info("Failed to load connector for expand", "error", err)
-	}
-
-	if connector != nil {
-		// Rescan the devices to pick up new size
-		for i := range connector.Devices {
-			if err := connector.Devices[i].Rescan(); err != nil {
-				h.log.V(LogLevelTrace).Info("Failed to rescan device", "device", connector.Devices[i].Name, "error", err)
-			}
-		}
-		// For multipath, resize the multipath device. The nil check comes first:
-		// IsMultipathEnabled dereferences MountTargetDevice.
-		if connector.MountTargetDevice != nil && connector.IsMultipathEnabled() {
-			if err := iscsilib.ResizeMultipathDevice(connector.MountTargetDevice); err != nil {
-				h.log.V(LogLevelTrace).Info("Failed to resize multipath device", "error", err)
-			}
-		}
-	}
-
-	// Rescan SCSI devices to pick up new size
+// rescanExpandDevice refreshes every live SCSI path and the multipath map, if any.
+func (h *ISCSIHandler) rescanExpandDevice(devicePath string, blockDevices []string) error {
 	h.rescanSCSIHosts()
 
-	// Get device path from connector
-	var devicePath string
-	if connector != nil && len(connector.Devices) > 0 {
-		devicePath = fmt.Sprintf("/dev/%s", connector.Devices[0].Name)
-		// Rescan this device specifically
-		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", connector.Devices[0].Name)
+	var errs []error
+	for _, blockDevice := range blockDevices {
+		rescanPath := filepath.Join(sysClassBlockDir, filepath.Base(blockDevice), "device", "rescan")
 		if err := os.WriteFile(rescanPath, []byte("1\n"), 0o200); err != nil {
-			h.log.V(LogLevelTrace).Info("Failed to rescan device", "error", err)
+			errs = append(errs, fmt.Errorf("failed to rescan %s: %w", blockDevice, err))
 		}
 	}
-
-	return devicePath
+	if strings.HasPrefix(filepath.Base(devicePath), "dm-") {
+		device := &iscsilib.Device{Name: filepath.Base(devicePath)}
+		if err := iscsilib.ResizeMultipathDevice(device); err != nil {
+			errs = append(errs, fmt.Errorf("failed to resize multipath device %s: %w", devicePath, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Expand implements iSCSI volume expansion.
 func (h *ISCSIHandler) Expand(ctx context.Context, req *ExpandRequest) (*ExpandResult, error) {
 	h.log.V(LogLevelDebug).Info("iSCSI Expand", "volumeId", req.VolumeID, "volumePath", req.VolumePath)
 
+	if req.DevicePath == "" || len(req.BlockDevices) == 0 {
+		return nil, fmt.Errorf("no live iSCSI device found for volume %s", req.VolumeID)
+	}
 	expandDevice := h.expandDevice
 	if expandDevice == nil {
 		expandDevice = h.rescanExpandDevice
 	}
-	devicePath := expandDevice(req.VolumeID)
+	if err := expandDevice(req.DevicePath, req.BlockDevices); err != nil {
+		return nil, err
+	}
 
 	// Raw block volumes hold whatever the workload wrote to them, commonly a
-	// partition table. The rescans above are the whole job: probing the device
-	// for a filesystem to grow would only find contents the driver must not
-	// touch, and the resizer rejects anything it cannot grow.
+	// partition table. Device rescans are the whole job; filesystem tools must
+	// not inspect or modify workload-owned block contents.
 	if req.IsBlockVolume {
-		h.log.V(LogLevelDebug).Info("Raw block volume, skipping filesystem resize", "volumeId", req.VolumeID, "device", devicePath)
+		h.log.V(LogLevelDebug).Info("Raw block volume, skipping filesystem resize", "volumeId", req.VolumeID, "device", req.DevicePath)
 		return &ExpandResult{CapacityBytes: req.CapacityBytes}, nil
 	}
 
-	// Resize filesystem
-	if devicePath != "" && req.VolumePath != "" {
-		h.log.V(LogLevelDebug).Info("Resizing filesystem", "device", devicePath, "volumePath", req.VolumePath)
-		resized, err := h.resizer.Resize(devicePath, req.VolumePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resize filesystem: %w", err)
-		}
-		if resized {
-			h.log.V(LogLevelDebug).Info("Filesystem resized successfully")
-		}
+	h.log.V(LogLevelDebug).Info("Resizing filesystem", "device", req.DevicePath, "volumePath", req.VolumePath)
+	resized, err := h.resizer.Resize(req.DevicePath, req.VolumePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resize filesystem: %w", err)
 	}
-
+	if resized {
+		h.log.V(LogLevelDebug).Info("Filesystem resized successfully")
+	}
 	return &ExpandResult{CapacityBytes: req.CapacityBytes}, nil
 }
 
@@ -571,18 +458,4 @@ func (h *ISCSIHandler) rescanSCSIHosts() {
 			h.log.V(LogLevelTrace).Info("Failed to scan SCSI host", "host", entry.Name(), "error", err)
 		}
 	}
-}
-
-// sanitizeISCSIVolumeID creates a safe filename from volume ID
-func sanitizeISCSIVolumeID(volumeID string) string {
-	result := make([]byte, 0, len(volumeID))
-	for i := 0; i < len(volumeID); i++ {
-		c := volumeID[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' {
-			result = append(result, c)
-		} else {
-			result = append(result, '_')
-		}
-	}
-	return string(result)
 }
