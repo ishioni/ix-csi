@@ -366,9 +366,19 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	volumeID := datasetPath
 
+	// Validate before the idempotent return: an existing dataset cannot make
+	// an NFS raw-block request valid.
+	for _, cap := range req.VolumeCapabilities {
+		if cap.GetBlock() != nil && protocol != ProtocolISCSI && protocol != ProtocolNVMeOF {
+			return nil, status.Error(codes.InvalidArgument, "block volume mode is not supported for NFS protocol")
+		}
+	}
+
 	existingDataset, err := s.driver.Client().GetDataset(ctx, datasetPath)
 	if err == nil && existingDataset != nil {
-		// Volume already exists - check if compatible (idempotency)
+		// Volume already exists - check if compatible (idempotency).
+		// Every successful retry must echo the requested content source; the
+		// provisioner may delete a clone/restore answered without it.
 		var existingCapacity int64
 		if existingDataset.Type == datasetTypeVolume {
 			// iSCSI ZVOL - use Volsize
@@ -415,6 +425,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 					VolumeId:      volumeID,
 					CapacityBytes: returnedCapacity,
 					VolumeContext: volCtx,
+					ContentSource: req.VolumeContentSource,
 				},
 			}, nil
 		}
@@ -432,6 +443,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 					VolumeId:      volumeID,
 					CapacityBytes: returnedCapacity,
 					VolumeContext: volCtx,
+					ContentSource: req.VolumeContentSource,
 				},
 			}, nil
 		}
@@ -443,15 +455,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				VolumeId:      volumeID,
 				CapacityBytes: returnedCapacity,
 				VolumeContext: parameters,
+				ContentSource: req.VolumeContentSource,
 			},
 		}, nil
-	}
-
-	// Check block volume compatibility with protocol (NFS cannot back raw block)
-	for _, cap := range req.VolumeCapabilities {
-		if cap.GetBlock() != nil && protocol != ProtocolISCSI && protocol != ProtocolNVMeOF {
-			return nil, status.Error(codes.InvalidArgument, "block volume mode is not supported for NFS protocol")
-		}
 	}
 
 	if req.VolumeContentSource != nil {
