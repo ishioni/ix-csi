@@ -280,6 +280,13 @@ func (h *ISCSIHandler) Unstage(ctx context.Context, req *UnstageRequest) error {
 	if connected {
 		return fmt.Errorf("iSCSI target %s remains connected after logout", req.ISCSI.TargetIQN)
 	}
+	evidenceTarget, err := findISCSIEvidenceTargetByVolumeID(req.VolumeID)
+	if err != nil {
+		return fmt.Errorf("failed to verify iSCSI cleanup for %s: %w", req.VolumeID, err)
+	}
+	if evidenceTarget != "" {
+		return fmt.Errorf("iSCSI target %s remains for volume %s after logout", evidenceTarget, req.VolumeID)
+	}
 	h.log.V(LogLevelDebug).Info("Disconnected from iSCSI target", "targetIqn", req.ISCSI.TargetIQN)
 	return nil
 }
