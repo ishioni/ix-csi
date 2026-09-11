@@ -364,8 +364,7 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-// NodeGetInfo returns the node ID without accessible topology.
-// TrueNAS storage has no per-node locality; nodes must have network access to it.
+// NodeGetInfo returns the node ID.
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	s.driver.Log().V(LogLevelDebug).Info("NodeGetInfo called")
 

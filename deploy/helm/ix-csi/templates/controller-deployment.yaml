@@ -117,7 +117,6 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --v={{ include "ix-csi.logVerbosity" . }}
-            # The driver reports no accessible topology, so no Topology feature gate is needed.
             - --extra-create-metadata
             - --leader-election=true
             - --default-fstype=ext4
