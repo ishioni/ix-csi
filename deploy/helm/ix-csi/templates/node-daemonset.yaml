@@ -64,7 +64,7 @@ spec:
                     set -e
                     mkdir -p /run/lock/iscsi
                     mv /usr/sbin/iscsiadm /usr/sbin/iscsiadm.orig 2>/dev/null || true
-                    printf '#!/bin/sh\nnsenter --mount=/host/proc/1/ns/mnt -- "${ISCSIADM_HOST_PATH:-/usr/sbin/iscsiadm}" "$@"\n' > /usr/sbin/iscsiadm
+                    printf '#!/bin/sh\nexport PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nexec nsenter --mount=/host/proc/1/ns/mnt -- "${ISCSIADM_HOST_PATH:-iscsiadm}" "$@"\n' > /usr/sbin/iscsiadm
                     chmod +x /usr/sbin/iscsiadm
                     nsenter --mount=/host/proc/1/ns/mnt -- modprobe nvme_tcp 2>/dev/null || true
                     nsenter --mount=/host/proc/1/ns/mnt -- modprobe nvme_fabrics 2>/dev/null || true
