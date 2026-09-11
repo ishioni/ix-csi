@@ -364,21 +364,14 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-// NodeGetInfo returns the node ID and topology information.
+// NodeGetInfo returns the node ID without accessible topology.
+// TrueNAS storage has no per-node locality; nodes must have network access to it.
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	s.driver.Log().V(LogLevelDebug).Info("NodeGetInfo called")
 
 	return &csi.NodeGetInfoResponse{
 		NodeId: s.driver.NodeID(),
 		// MaxVolumesPerNode: 0 means no limit
-		// No pool-based topology: TrueNAS storage (NFS/iSCSI/NVMe-oF) is
-		// network-attached and reachable from every node, so volumes must not be
-		// constrained to a pool's node label. Only the per-node key is advertised.
-		AccessibleTopology: &csi.Topology{
-			Segments: map[string]string{
-				"topology.ix-csi.io/node": s.driver.NodeID(),
-			},
-		},
 	}, nil
 }
 

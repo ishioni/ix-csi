@@ -818,13 +818,8 @@ func (d *Driver) initializeCapabilities() {
 				},
 			},
 		},
-		{
-			Type: &csi.PluginCapability_Service_{
-				Service: &csi.PluginCapability_Service{
-					Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
-				},
-			},
-		},
+		// No VOLUME_ACCESSIBILITY_CONSTRAINTS: network-attached storage has no
+		// per-node locality. See NodeGetInfo.
 		{
 			Type: &csi.PluginCapability_VolumeExpansion_{
 				VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
