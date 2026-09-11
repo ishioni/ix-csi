@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/ishioni/ix-csi/compare/1.7.1...1.7.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* make node unstage protocol-aware ([#47](https://github.com/ishioni/ix-csi/issues/47)) ([85e041b](https://github.com/ishioni/ix-csi/commit/85e041bb35967416d5a77726f22676509dd03a88))
+
 ## [1.7.1](https://github.com/ishioni/ix-csi/compare/1.7.0...1.7.1) (2026-09-11)
 
 
