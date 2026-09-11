@@ -3,9 +3,11 @@ package driver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -184,6 +186,14 @@ func ensureIPv4Portal(portal string) error {
 	return nil
 }
 
+func withCommandOutput(err error) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return err
+}
+
 // Stage implements iSCSI volume staging (login and device setup)
 func (h *ISCSIHandler) Stage(ctx context.Context, req *StageRequest) (*StageResult, error) {
 	h.log.V(LogLevelDebug).Info("iSCSI Stage", "volumeId", req.VolumeID, "stagingPath", req.StagingPath, "isBlock", req.IsBlockVolume)
@@ -209,7 +219,7 @@ func (h *ISCSIHandler) Stage(ctx context.Context, req *StageRequest) (*StageResu
 	h.log.V(LogLevelDebug).Info("Connecting to iSCSI target", "portal", config.TargetPortal, "iqn", config.TargetIQN, "lun", config.LUN)
 	devicePath, err := iscsilib.Connect(*connector)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to iSCSI target %s at %s: %w", config.TargetIQN, config.TargetPortal, err)
+		return nil, fmt.Errorf("failed to connect to iSCSI target %s at %s: %w", config.TargetIQN, config.TargetPortal, withCommandOutput(err))
 	}
 
 	h.log.V(LogLevelDebug).Info("iSCSI connected", "device", devicePath)
